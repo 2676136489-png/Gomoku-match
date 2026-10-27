@@ -1,0 +1,2629 @@
+/* ==========================================================================
+   水墨棋院 · 页面层
+   ========================================================================== */
+
+/* --------------------------------------------------------------- 集页（登录） */
+
+.auth {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.02fr 0.98fr;
+  align-items: center;
+  gap: 56px;
+  max-width: 1120px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 64px 34px;
+}
+
+/* 背后一个淡到几乎看不见的「棋」字，像纸上的一方水印 */
+.auth-intro {
+  position: relative;
+  padding: 30px 0;
+}
+
+.auth-intro::after {
+  content: "棋";
+  position: absolute;
+  right: 4%;
+  top: 42%;
+  transform: translateY(-50%);
+  font-family: var(--font-kai);
+  font-size: 260px;
+  line-height: 1;
+  color: rgba(23, 21, 15, 0.045);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.auth-brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.auth-brand .brand-mark {
+  width: 52px;
+  height: 52px;
+  border-radius: 4px;
+}
+
+.auth-brand .brand-mark::after {
+  font-size: 31px;
+}
+
+.auth-brand h1 {
+  font-size: 30px;
+  letter-spacing: 0.16em;
+  line-height: 1.2;
+}
+
+.auth-brand p {
+  margin-top: 5px;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+
+.auth-points {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0;
+  margin: 38px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+
+.auth-points li {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 16px;
+  align-items: baseline;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.auth-points b {
+  font-family: var(--font-kai);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+
+.auth-points span {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+.auth-footnote {
+  position: relative;
+  z-index: 1;
+  margin-top: 26px;
+  max-width: 46ch;
+  font-size: 11.5px;
+  line-height: 1.8;
+  color: var(--ink-4);
+}
+
+/* 名刺：一张窄窄的纸，四角见棱 */
+.auth-card {
+  position: relative;
+  padding: 30px 32px 26px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0)), var(--paper-hi);
+  box-shadow: 0 2px 0 rgba(255, 255, 255, 0.7) inset, 0 30px 60px -44px rgba(23, 21, 15, 0.9);
+}
+
+.auth-card::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 1px solid var(--rule-soft);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 26px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.auth-tab {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0 0 10px;
+  font-family: var(--font-kai);
+  font-size: 18px;
+  letter-spacing: 0.14em;
+  color: var(--ink-4);
+  cursor: pointer;
+  transition: color 0.16s;
+}
+
+.auth-tab:hover {
+  color: var(--ink-2);
+}
+
+.auth-tab.is-active {
+  color: var(--ink);
+  box-shadow: 0 1px 0 0 var(--seal);
+}
+
+.auth-form {
+  display: grid;
+  gap: 15px;
+}
+
+.auth-form .field > span {
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+}
+
+.auth-form input {
+  padding: 10px 11px;
+  background: transparent;
+  border-color: var(--rule);
+}
+
+.auth-form input:focus {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.auth-error {
+  margin-top: -3px;
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 4px;
+  padding: 11px 16px;
+  font-family: var(--font-kai);
+  font-size: 16px;
+  letter-spacing: 0.24em;
+}
+
+.auth-switch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 18px;
+  font-size: 12.5px;
+  color: var(--ink-4);
+}
+
+.auth-switch button {
+  appearance: none;
+  border: 0;
+  border-bottom: 1px dashed var(--ink-5);
+  background: none;
+  padding: 0;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.auth-switch button:hover {
+  color: var(--seal-deep);
+  border-bottom-color: rgba(166, 54, 40, 0.45);
+}
+
+@media (max-width: 900px) {
+  .auth {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    min-height: 0;
+    padding: 44px 20px 56px;
+  }
+
+  .auth-intro::after {
+    display: none;
+  }
+
+  .auth-brand h1 {
+    font-size: 25px;
+  }
+}
+
+/* ------------------------------------------------------------- 大厅（五册） */
+
+.hub {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.hub-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 26px;
+  align-items: end;
+  padding: 26px 30px 24px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background:
+    radial-gradient(600px 200px at 100% 0%, rgba(166, 54, 40, 0.06), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0)),
+    var(--paper-hi);
+  box-shadow: var(--lift);
+}
+
+.hub-hero h2 {
+  font-size: 27px;
+  letter-spacing: 0.1em;
+  line-height: 1.4;
+}
+
+.hub-hero p {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.hub-stats {
+  display: flex;
+  gap: 0;
+  border-left: 1px solid var(--rule);
+}
+
+.stat {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  padding: 2px 18px;
+  min-width: 74px;
+}
+
+.stat + .stat {
+  border-left: 1px solid var(--rule-soft);
+}
+
+.stat b {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.stat span {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink-4);
+}
+
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+/* 七个模块三列排下来，第三行只剩一张，右边空两格像漏了一页。
+   让它横跨整行当收尾的横条——编号 | 标题正文 | 入口 横向重排。 */
+.module-card:last-child:nth-child(odd) {
+  grid-column: span 2;
+}
+
+/* 横跨两列后正文会拉成一行超长句，卡片的说明文字仍按窄栏排 */
+.module-card:last-child:nth-child(odd) p {
+  max-width: 46ch;
+}
+
+@media (min-width: 1081px) {
+  .module-card:last-child:nth-child(odd) {
+    grid-column: span 3;
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "index head go"
+      "index text go";
+    column-gap: 4px;
+    row-gap: 5px;
+    align-items: start;
+  }
+
+  .module-card:last-child:nth-child(odd) .module-index {
+    grid-area: index;
+    padding-top: 3px;
+  }
+
+  .module-card:last-child:nth-child(odd) .module-head {
+    grid-area: head;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .module-card:last-child:nth-child(odd) p {
+    grid-area: text;
+    max-width: 78ch;
+  }
+
+  .module-card:last-child:nth-child(odd) .module-go {
+    grid-area: go;
+    align-self: center;
+    margin-top: 0;
+    padding: 0 0 0 24px;
+    white-space: nowrap;
+  }
+}
+
+/* 册页：每张卡都是纸的一页，编号是朱砂的 */
+.module-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 20px 20px 17px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0)), var(--paper-hi);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+}
+
+.module-card::after {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--seal), transparent 62%);
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+
+.module-card:hover {
+  border-color: var(--ink-4);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px -26px rgba(23, 21, 15, 0.8);
+}
+
+.module-card:hover::after {
+  opacity: 0.75;
+}
+
+.module-index {
+  font-family: var(--font-song);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: var(--seal);
+}
+
+.module-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.module-head h3 {
+  font-size: 19px;
+  letter-spacing: 0.12em;
+}
+
+.module-tag {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+
+.module-card p {
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--ink-3);
+}
+
+.module-go {
+  margin-top: auto;
+  padding-top: 6px;
+  font-family: var(--font-kai);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--seal-deep);
+}
+
+.hub-lower {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.hub-note {
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--ink-4);
+  text-align: right;
+}
+
+.history,
+.board-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history li,
+.board-list li {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 2px;
+  border-bottom: 1px solid var(--rule-soft);
+  font-size: 13px;
+}
+
+.history li:last-child,
+.board-list li:last-child {
+  border-bottom: 0;
+}
+
+.history li {
+  grid-template-columns: 22px minmax(0, 1fr) auto auto;
+}
+
+.board-list li {
+  grid-template-columns: 24px minmax(0, 1fr) auto auto;
+}
+
+.result {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 2px;
+  font-family: var(--font-kai);
+  font-size: 12px;
+  color: var(--paper-hi);
+}
+
+.result-win {
+  background: var(--jade);
+}
+
+.result-loss {
+  background: var(--seal);
+}
+
+.result-draw {
+  background: var(--ink-4);
+}
+
+.history-main,
+.board-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-1);
+}
+
+.history-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+.rank {
+  font-family: var(--font-song);
+  font-size: 12px;
+  color: var(--ink-4);
+  text-align: center;
+}
+
+.board-rate {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.board-list li.is-me .board-name {
+  color: var(--seal-deep);
+  font-weight: 600;
+}
+
+.board-list li.is-me .rank {
+  color: var(--seal);
+}
+
+@media (max-width: 1080px) {
+  .hub-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hub-hero {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .hub-stats {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    padding-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    padding: 2px 14px 2px 0;
+  }
+
+  .stat + .stat {
+    border-left: 0;
+    border-right: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .hub-grid,
+  .hub-lower {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* 单列时跨两列会把卡片挤出网格 */
+  .module-card:last-child:nth-child(odd) {
+    grid-column: span 1;
+  }
+}
+
+/* --------------------------------------------------------------- 教程（立轴） */
+
+.tutorial {
+  display: grid;
+  /* 立轴要挂正：目录 + 正文整体居中，别让正文顶在左边、
+     右边空出三分之一，那不像留白，像没排完。 */
+  grid-template-columns: 262px minmax(0, 620px);
+  justify-content: center;
+  gap: 34px;
+  align-items: start;
+}
+
+.tut-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 92px;
+  padding-right: 4px;
+  border-right: 1px solid var(--rule);
+}
+
+.tut-nav-item {
+  appearance: none;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 11px 12px 11px 8px;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0 2px 2px 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.16s, border-color 0.16s;
+}
+
+.tut-nav-item:hover {
+  background: rgba(23, 21, 15, 0.035);
+}
+
+.tut-nav-item.is-active {
+  border-left-color: var(--seal);
+  background: rgba(23, 21, 15, 0.05);
+}
+
+.tut-nav-index {
+  font-family: var(--font-song);
+  font-size: 12px;
+  line-height: 1.9;
+  letter-spacing: 0.1em;
+  color: var(--ink-4);
+}
+
+.tut-nav-item.is-active .tut-nav-index {
+  color: var(--seal);
+}
+
+.tut-nav-item b {
+  display: block;
+  font-family: var(--font-kai);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--ink-1);
+}
+
+.tut-nav-item em {
+  display: block;
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-4);
+}
+
+.tut-body {
+  min-width: 0;
+  /* 行宽由列轨道控住（620px ≈ 44 个汉字），这里不再加 ch 上限，
+     否则两道上限一撞，正文又缩回去。 */
+  max-width: none;
+}
+
+.tut-head {
+  padding-bottom: 16px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.tut-kicker {
+  font-family: var(--font-song);
+  font-size: 11.5px;
+  letter-spacing: 0.18em;
+  color: var(--seal);
+}
+
+.tut-head h2 {
+  margin-top: 8px;
+  font-size: 28px;
+  letter-spacing: 0.14em;
+}
+
+.tut-head > p {
+  margin-top: 8px;
+  font-size: 13.5px;
+  line-height: 1.85;
+  color: var(--ink-3);
+}
+
+.tut-section {
+  padding: 22px 0 6px;
+}
+
+.tut-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 19px;
+  letter-spacing: 0.1em;
+}
+
+.tut-num {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--seal);
+  border-radius: 2px;
+  font-family: var(--font-song);
+  font-size: 11.5px;
+  line-height: 1;
+  color: var(--seal-deep);
+}
+
+.tut-text {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.tut-text p {
+  font-size: 14px;
+  line-height: 1.95;
+  color: var(--ink-1);
+  text-align: justify;
+}
+
+.tut-text p:first-child::first-letter {
+  font-family: var(--font-kai);
+  font-size: 1.35em;
+  color: var(--ink);
+}
+
+.tut-demo {
+  margin: 16px 0 4px;
+  padding: 12px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  max-width: 340px;
+}
+
+.tut-demo figcaption {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule-soft);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-3);
+  text-align: center;
+}
+
+.tut-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 26px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+
+@media (max-width: 900px) {
+  .tutorial {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .tut-nav {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+    padding: 0 0 8px;
+  }
+
+  .tut-nav-item {
+    flex: 0 0 auto;
+    border-left: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 2px 2px 0 0;
+  }
+
+  .tut-nav-item.is-active {
+    border-left-color: transparent;
+    border-bottom-color: var(--seal);
+  }
+}
+
+/* --------------------------------------------------------------- 小棋盘 */
+
+.mini-board {
+  display: block;
+  border-radius: 2px;
+}
+
+.mini-bg {
+  /* 和主棋盘 canvas 的木色取同一档，否则教程里的图和真棋盘像两种木头 */
+  fill: #e5cb9d;
+  stroke: rgba(96, 66, 30, 0.3);
+  stroke-width: 1;
+}
+
+.mini-grid line {
+  stroke: rgba(46, 32, 18, 0.42);
+  stroke-width: 1;
+}
+
+.mini-star {
+  fill: rgba(46, 32, 18, 0.72);
+}
+
+.mini-stone {
+  stroke: rgba(74, 56, 30, 0.3);
+  stroke-width: 1;
+}
+
+.mini-black {
+  fill: var(--ink);
+}
+
+.mini-white {
+  fill: var(--paper-hi);
+}
+
+.mini-ban circle {
+  fill: none;
+  stroke: var(--seal);
+  stroke-width: 1.4;
+}
+
+.mini-ban line {
+  stroke: var(--seal);
+  stroke-width: 1.6;
+}
+
+.mini-hint {
+  /* 建议落点用朱砂虚线，和主棋盘 canvas 上的 hint 一致 */
+  fill: none;
+  stroke: var(--seal);
+  stroke-width: 1.6;
+  stroke-dasharray: 3 2;
+  opacity: 0.75;
+}
+
+/* --------------------------------------------------------------- 教练面板 */
+
+.coach-card {
+  padding: 13px 14px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink-4);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.coach-win {
+  border-left-color: var(--jade);
+}
+
+.coach-good {
+  border-left-color: var(--jade);
+}
+
+.coach-warn {
+  border-left-color: var(--seal);
+}
+
+.coach-neutral {
+  border-left-color: var(--ink-4);
+}
+
+.coach-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 7px;
+}
+
+.coach-grade {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  font-family: var(--font-kai);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.coach-grade-win,
+.coach-grade-good {
+  color: var(--jade);
+}
+
+.coach-grade-warn {
+  color: var(--seal-deep);
+}
+
+.coach-grade-neutral {
+  color: var(--ink-3);
+}
+
+.coach-head b {
+  font-family: var(--font-kai);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+
+.coach-card > p {
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--ink-2);
+}
+
+.coach-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--rule);
+  font-size: 11.5px;
+  color: var(--ink-4);
+}
+
+.coach-tactics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.coach-label {
+  display: block;
+  margin-bottom: 5px;
+  font-family: var(--font-song);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--ink-4);
+}
+
+.coach-tactics ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.coach-tactics li.warn,
+.warn {
+  color: var(--seal-deep);
+}
+
+.coach-agent {
+  margin-top: 14px;
+  padding-top: 11px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.coach-agent p {
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--ink-2);
+}
+
+/* --------------------------------------------------------------- 棋谱列表 */
+
+.thinking {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--rule);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.thinking-head {
+  margin-bottom: 6px;
+  font-family: var(--font-song);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--ink-4);
+}
+
+.thinking ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thinking li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 11.5px;
+}
+
+.thinking li.is-picked {
+  color: var(--ink);
+}
+
+.thinking li.is-picked .coord {
+  color: var(--seal-deep);
+  font-weight: 600;
+}
+
+.tag {
+  padding: 0 5px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  font-size: 10px;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+}
+
+.tag-attack {
+  border-color: rgba(63, 102, 86, 0.35);
+  color: var(--jade);
+}
+
+.tag-defence {
+  border-color: rgba(51, 80, 95, 0.35);
+  color: var(--indigo);
+}
+
+.tag-ban {
+  border-color: rgba(166, 54, 40, 0.4);
+  color: var(--seal-deep);
+}
+
+.feed {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feed li {
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.feed li:last-child {
+  border-bottom: 0;
+}
+
+.feed-row {
+  appearance: none;
+  width: 100%;
+  display: grid;
+  /* 只有「棋子点 + 说明」两列。手数在 .feed-top 里，别在这里再留一列——
+     留了的话两列内容会被挤进 12px 的点位列，整条棋谱竖着排成单字。 */
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  padding: 8px 4px 8px 2px;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0 2px 2px 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s;
+}
+
+.feed-row:hover {
+  background: rgba(23, 21, 15, 0.035);
+}
+
+.feed-row.is-active {
+  border-left-color: var(--seal);
+  background: rgba(166, 54, 40, 0.055);
+}
+
+.feed-row .dot {
+  margin-top: 6px;
+}
+
+.feed-top b {
+  min-width: 15px;
+  font-family: var(--font-song);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-4);
+}
+
+.feed-body {
+  min-width: 0;
+}
+
+.feed-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.feed-meta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-4);
+}
+
+.feed-body p {
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-empty {
+  padding: 14px 0;
+  font-size: 12.5px;
+  color: var(--ink-4);
+}
+
+/* --------------------------------------------------------------- 规则卡 */
+
+.rule-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rule-list li {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px dotted var(--rule);
+  font-size: 12.5px;
+}
+
+.rule-list li:last-child {
+  border-bottom: 0;
+}
+
+.rule-list b {
+  font-family: var(--font-kai);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ink-1);
+}
+
+.rule-list span {
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+.rule-note {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--rule-soft);
+  font-size: 11.5px;
+  line-height: 1.75;
+  color: var(--ink-4);
+}
+
+/* --------------------------------------------------------------- 代码编辑器 */
+
+.editor {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--paper-hi);
+  overflow: hidden;
+}
+
+.editor.is-readonly {
+  opacity: 0.82;
+}
+
+.editor-gutter {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 11px 0;
+  border-right: 1px solid var(--rule-soft);
+  background: rgba(23, 21, 15, 0.03);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.62;
+  color: var(--ink-5);
+  text-align: right;
+  user-select: none;
+}
+
+.editor-gutter span {
+  padding-right: 9px;
+}
+
+.editor-area {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 11px 12px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.62;
+  color: var(--ink-1);
+  tab-size: 4;
+  resize: vertical;
+  min-height: 200px;
+}
+
+.editor-area:focus {
+  background: #fffdf6;
+  box-shadow: none;
+}
+
+/* --------------------------------------------------------------- 实验室 */
+
+.lab,
+.arena {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lab-caps {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+/* 编辑器是主角，占满左边；上传和设置缩在右侧一条窄栏里 */
+.code-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+
+.code-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.code-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--rule-soft);
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.code-toolbar .seg-group {
+  flex: 0 0 auto;
+  min-width: 150px;
+}
+
+.code-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.code-file {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 220px;
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-1);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.code-file em {
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--ink-4);
+}
+
+.code-file-builtin {
+  font-family: var(--font-kai);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.code-lines {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-4);
+}
+
+.code-flag {
+  padding: 1px 7px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-4);
+}
+
+.code-flag.is-ok {
+  border-color: rgba(63, 102, 86, 0.4);
+  color: var(--jade);
+}
+
+.code-tools {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+/* 编辑器嵌在面板里，自己那圈边框会和面板边撞成双线 */
+.code-main .editor {
+  border: 0;
+  border-radius: 0;
+}
+
+/* 拖拽落区：整块编辑器都是靶子 */
+.code-drop {
+  position: relative;
+  padding: 0 0 0 0;
+}
+
+.code-drop-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--seal);
+  background: rgba(166, 54, 40, 0.06);
+  pointer-events: none;
+}
+
+.code-drop-hint span {
+  font-family: var(--font-kai);
+  font-size: 17px;
+  letter-spacing: 0.16em;
+  color: var(--seal-deep);
+}
+
+.code-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 0 16px 14px;
+}
+
+.code-actions-note {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+.code-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.code-upload-note {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--ink-3);
+}
+
+.code-upload-btn {
+  width: 100%;
+  margin-top: 11px;
+}
+
+.code-upload-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-4);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 跑起来之后从下面展开：棋盘 + 逐手过程 */
+.code-run {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+  align-items: start;
+}
+
+.code-run-board .board-frame {
+  width: min(100%, 520px);
+  margin-inline: auto;
+}
+
+.lab-archive {
+  padding: 10px 12px;
+  border: 1px dashed var(--rule);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.lab-archive-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.lab-archive-head b {
+  font-family: var(--font-kai);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.lab-archive-head span {
+  font-size: 11.5px;
+  color: var(--ink-4);
+}
+
+.lab-verify {
+  display: grid;
+  gap: 3px;
+  padding: 9px 12px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink-4);
+  border-radius: 2px;
+  font-size: 12.5px;
+}
+
+.lab-verify.is-ok {
+  border-left-color: var(--jade);
+  background: rgba(63, 102, 86, 0.06);
+}
+
+.lab-verify.is-bad {
+  border-left-color: var(--seal);
+  background: rgba(166, 54, 40, 0.06);
+}
+
+.lab-verify b {
+  font-family: var(--font-kai);
+  font-size: 13.5px;
+  letter-spacing: 0.08em;
+}
+
+.lab-verify.is-ok b {
+  color: var(--jade);
+}
+
+.lab-verify.is-bad b {
+  color: var(--seal-deep);
+}
+
+.lab-verify pre {
+  margin: 4px 0 0;
+  padding: 8px;
+  max-height: 160px;
+  overflow: auto;
+  background: rgba(23, 21, 15, 0.05);
+  border-radius: 2px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: var(--ink-2);
+}
+
+.lab-settings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 13px 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.lab-settings .toggle,
+.lab-settings .field:has(input[type="range"]) {
+  grid-column: 1 / -1;
+}
+
+/* 窄栏里没有并排的余地，一律单列 */
+.code-rail .lab-settings {
+  grid-template-columns: 1fr;
+}
+
+.lab-status {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.lab-result {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 13px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink-4);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.36);
+}
+
+.lab-result.is-done {
+  border-left-color: var(--jade);
+}
+
+.lab-result b {
+  font-family: var(--font-kai);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.lab-result span {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.lab-feed,
+.arena-log {
+  min-height: 120px;
+}
+
+.lab-moves,
+.arena-moves {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.lab-moves li,
+.arena-moves li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 2px;
+  border-bottom: 1px solid var(--rule-soft);
+  font-size: 11.5px;
+}
+
+.lab-moves li:last-child,
+.arena-moves li:last-child {
+  border-bottom: 0;
+}
+
+.lab-moves li.is-ban {
+  background: rgba(166, 54, 40, 0.055);
+}
+
+.lab-move-n {
+  flex: 0 0 26px;
+  font-family: var(--font-song);
+  font-size: 11px;
+  color: var(--ink-4);
+  text-align: right;
+}
+
+.lab-move-xy {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  color: var(--ink-1);
+}
+
+/* 对局双方的名字都很短，给定宽不截断；名字一截，就看不出是谁下的 */
+.lab-move-by {
+  flex: 0 0 auto;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* 备注 + 耗时整体贴行尾：少了这个 auto，耗时会跟着坐标跑 */
+.lab-move-tail {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.lab-move-ms {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  color: var(--ink-4);
+}
+
+/* 备注是唯一允许被挤掉的：改判禁手那段可以很长，省略号 + title 兜住 */
+.lab-move-note {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--seal-deep);
+  font-size: 11px;
+}
+
+@media (max-width: 1080px) {
+  .code-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .code-run {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lab-settings {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --------------------------------------------------------------- 竞技场 */
+
+.arena-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.arena-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.arena-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.picker-title {
+  margin-bottom: 6px;
+  font-family: var(--font-song);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--ink-4);
+}
+
+.picker-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.picker-item {
+  appearance: none;
+  display: grid;
+  gap: 1px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.32);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s, background 0.16s;
+}
+
+.picker-item:hover {
+  border-color: var(--ink-4);
+}
+
+.picker-item.is-active {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+.picker-item b {
+  font-family: var(--font-kai);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ink-1);
+}
+
+.picker-item span {
+  font-size: 10.5px;
+  color: var(--ink-4);
+}
+
+.picker-item.is-active b {
+  color: var(--paper-hi);
+}
+
+.picker-item.is-active span {
+  color: rgba(247, 248, 244, 0.62);
+}
+
+.arena-options {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.arena-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.arena-buttons .btn-primary {
+  flex: 1 1 auto;
+}
+
+/* 解释「为什么每局不一样」，字要小、要贴着按钮，别抢戏 */
+.arena-hint {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.75;
+  color: var(--ink-4);
+}
+
+.arena-hint b {
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.arena-tally ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+
+.arena-tally li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 0;
+  border-bottom: 1px dotted var(--rule);
+  color: var(--ink-2);
+}
+
+.arena-tally b {
+  font-family: var(--font-kai);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.arena-warn {
+  padding: 8px 11px;
+  border-left: 3px solid var(--ochre);
+  background: rgba(163, 117, 44, 0.07);
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: #7d5a1d;
+}
+
+.arena-play {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.scoreboard {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0)), var(--paper-hi);
+}
+
+.score-vs {
+  /* 不写 nowrap 的话 auto 列会被两边挤窄，「VS」竖着断成两行 */
+  padding: 0 3px;
+  font-family: var(--font-song);
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  color: var(--ink-5);
+  white-space: nowrap;
+}
+
+.score {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  grid-template-areas: "dot name" "dot meta";
+  gap: 1px 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.score .dot {
+  grid-area: dot;
+  align-self: start;
+  margin-top: 6px;
+}
+
+.score b {
+  grid-area: name;
+  font-family: var(--font-kai);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ink-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score em {
+  grid-area: meta;
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--ink-4);
+}
+
+.score:last-child {
+  /* 只换 areas 不换列宽的话，名字会落进 12px 的点位列里被压成一条 */
+  grid-template-columns: minmax(0, 1fr) 12px;
+  grid-template-areas: "name dot" "meta dot";
+  justify-items: end;
+  text-align: right;
+}
+
+.score.is-winner b {
+  color: var(--seal-deep);
+}
+
+@media (max-width: 1080px) {
+  .arena-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ==========================================================================
+   在线对战 / 棋谱 / 错误边界
+   --------------------------------------------------------------------------
+   这一层只加在线对战、回放和崩溃页需要的版式，颜色和字号一律走 :root 的 token。
+   棋盘、面板、按钮沿用原有骨架，新页面不应该看起来像另一个站点。
+   ========================================================================== */
+
+/* --- 通用小件 --- */
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  letter-spacing: 0.02em;
+}
+
+.btn-small {
+  padding: 5px 11px;
+  font-size: 12px;
+}
+
+.btn-danger {
+  border-color: rgba(166, 54, 40, 0.45);
+  color: var(--seal);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(166, 54, 40, 0.07);
+}
+
+.pill-rating {
+  border-color: rgba(166, 54, 40, 0.35);
+  color: var(--seal);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+/* --- 崩溃页 --- */
+
+.crash {
+  width: min(100%, 560px);
+  margin: 12vh auto 0;
+  padding: 28px 30px;
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--seal);
+  background: var(--paper-hi);
+  box-shadow: var(--lift);
+}
+
+.crash h2 {
+  margin: 0 0 10px;
+  font-family: var(--font-song);
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.crash-msg {
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--seal);
+  word-break: break-word;
+}
+
+.crash-note {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.7;
+}
+
+.crash-detail {
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.crash-detail pre {
+  margin: 8px 0 0;
+  padding: 10px;
+  overflow: auto;
+  background: var(--paper-lo);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* --- 在线大厅 --- */
+
+.online-me {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-song);
+}
+
+.online-me b {
+  font-size: 26px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.online-tabs {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 4px 0 22px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.online-tabs .tab {
+  appearance: none;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: none;
+  color: var(--ink-3);
+  font-family: var(--font-song);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.online-tabs .tab.is-active {
+  color: var(--ink);
+  border-bottom-color: var(--seal);
+}
+
+.online-live {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.dot-live {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--jade);
+  box-shadow: 0 0 0 3px rgba(63, 102, 86, 0.12);
+}
+
+.online-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+}
+
+.chip em {
+  margin-left: 6px;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+.queue-box {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.queue-wait {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.queue-wait b {
+  font-family: var(--font-song);
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.queue-wait p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.queue-matched {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-left: 2px solid var(--jade);
+  background: rgba(63, 102, 86, 0.06);
+  font-size: 13px;
+  color: var(--ink-1);
+}
+
+.room-code {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px dashed var(--rule-strong);
+  background: var(--paper-hi);
+}
+
+.room-code b {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  letter-spacing: 0.24em;
+}
+
+.room-code-label {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+}
+
+.room-join {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.room-join input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--ink-5);
+  border-radius: 2px;
+  background: var(--paper-hi);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.room-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.room-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  font-size: 13px;
+}
+
+.room-list li:last-child {
+  border-bottom: 0;
+}
+
+.room-host {
+  font-family: var(--font-song);
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-meta {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.online-how {
+  margin-top: 18px;
+}
+
+.how-list {
+  margin: 0;
+  padding: 0 0 0 18px;
+  list-style: decimal;
+}
+
+.how-list li {
+  margin: 10px 0;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+
+.how-list b {
+  display: block;
+  font-family: var(--font-song);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: 0.06em;
+}
+
+/* --- 对局页 --- */
+
+.room-grid {
+  --side: 320px;
+  --gap: 22px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--side);
+  gap: var(--gap);
+  align-items: start;
+}
+
+/* 棋盘是正方形，宽度一吃到列宽就不管高度了：1416×948 下算出来 678 高，
+   加上页头、玩家条、棋谱说明正好把下沿顶出视口。所以按「视口高度 - 固定开销」
+   反推棋盘最大边长，整块布局跟着收窄居中——只压棋盘的话右边栏会被甩得很远。 */
+@media (min-width: 1081px) {
+  .room-grid {
+    --overhead: 366px; /* 页头 + 玩家条 + 说明文字 + 页面下留白，实测值 */
+    max-width: min(100%, calc(100vh - var(--overhead) + var(--side) + var(--gap)));
+    margin-inline: auto;
+  }
+}
+
+.room-players {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.room-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-left: 2px solid transparent;
+  background: var(--paper-hi);
+  transition: border-color 0.15s ease;
+}
+
+.room-player.is-active {
+  border-left-color: var(--seal);
+  background: rgba(166, 54, 40, 0.04);
+}
+
+.room-player.is-me .room-player-main b {
+  color: var(--seal-deep);
+}
+
+.stone {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.stone-black {
+  background: radial-gradient(circle at 35% 32%, #4b463c, #15130f 70%);
+}
+
+.stone-white {
+  background: radial-gradient(circle at 35% 32%, #fffdf7, #ddd2ba 78%);
+  border: 1px solid rgba(74, 56, 30, 0.24);
+}
+
+.room-player-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.room-player-main b {
+  font-family: var(--font-song);
+  font-size: 14px;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-player-main .dim {
+  font-size: 11px;
+}
+
+.room-clock {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.room-clock.is-active {
+  color: var(--ink);
+}
+
+.room-clock.is-low {
+  color: var(--seal);
+}
+
+.room-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.result-card {
+  padding: 18px;
+  border: 1px solid var(--rule);
+  border-top: 2px solid var(--ink);
+  background: var(--paper-hi);
+  box-shadow: var(--lift);
+}
+
+.result-card.result-win {
+  border-top-color: var(--seal);
+}
+
+.result-card.result-loss {
+  border-top-color: var(--ink-3);
+}
+
+.result-card h3 {
+  margin: 0 0 6px;
+  font-family: var(--font-song);
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+}
+
+.result-card p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.result-delta {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--seal);
+}
+
+.result-card .btn {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.game-feed {
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.game-row {
+  display: grid;
+  /* 手数 / 棋子 / 坐标 / 耗时。四列写死，别让某一列退化成 fit-content。 */
+  grid-template-columns: 26px 12px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 6px;
+  border: 0;
+  border-left: 2px solid transparent;
+  background: none;
+  font-size: 12px;
+  text-align: left;
+  color: var(--ink-2);
+}
+
+.game-row.as-button {
+  width: 100%;
+  cursor: pointer;
+}
+
+.game-row.as-button:hover {
+  background: rgba(21, 24, 26, 0.035);
+}
+
+.game-row.is-active {
+  border-left-color: var(--seal);
+  background: rgba(166, 54, 40, 0.05);
+}
+
+.game-row .dot {
+  width: 9px;
+  height: 9px;
+}
+
+.feed-idx {
+  font-family: var(--font-song);
+  font-size: 11px;
+  color: var(--ink-4);
+  text-align: right;
+}
+
+.feed-pos {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-ms {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-log {
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 13px;
+}
+
+.chat-log p {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--ink-1);
+  word-break: break-word;
+}
+
+.chat-log p b {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+
+.chat-log p.is-me b {
+  color: var(--seal);
+}
+
+.chat-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.chat-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--ink-5);
+  border-radius: 2px;
+  background: var(--paper-hi);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+/* --- 棋谱库与回放 --- */
+
+.replay-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.replay-table th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--rule-strong);
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+  text-align: left;
+}
+
+.replay-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: middle;
+}
+
+.replay-table tr:hover td {
+  background: rgba(21, 24, 26, 0.02);
+}
+
+.replay-opponent {
+  font-family: var(--font-song);
+  font-size: 14px;
+}
+
+.replay-table .up {
+  color: var(--seal);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.replay-table .down {
+  color: var(--jade);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.replay-grid {
+  --side: 300px;
+  --gap: 22px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--side);
+  gap: var(--gap);
+  align-items: start;
+}
+
+/* 回放棋盘下面还压着控制条和进度条，开销比房间页小一点但要留够 */
+@media (min-width: 1081px) {
+  .replay-grid {
+    --overhead: 336px;
+    max-width: min(100%, calc(100vh - var(--overhead) + var(--side) + var(--gap)));
+    margin-inline: auto;
+  }
+}
+
+.replay-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.replay-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.replay-scrub {
+  width: 100%;
+  margin-top: 12px;
+  accent-color: var(--seal);
+}
+
+.replay-side .game-feed {
+  max-height: 520px;
+}
+
+@media (max-width: 1080px) {
+  .online-grid,
+  .room-grid,
+  .replay-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .room-players {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .online-tabs {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .online-live {
+    margin-left: 0;
+    width: 100%;
+    order: 3;
+  }
+
+  .room-list li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 4px;
+  }
+
+  .replay-table th:nth-child(3),
+  .replay-table td:nth-child(3),
+  .replay-table th:nth-child(6),
+  .replay-table td:nth-child(6) {
+    display: none;
+  }
+}
+
+/* --- 大厅：段位进度与天梯列 --- */
+
+/* 七张卡的收尾规则在文件前段的 .hub-grid 下面，这里别再动 grid-column：
+   两条同权重的声明，谁在后面谁说了算，之前就是这么把收尾横条压回一格的。 */
+
+.rank-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  max-width: 420px;
+}
+
+.rank-label {
+  font-family: var(--font-song);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--seal-deep);
+  white-space: nowrap;
+}
+
+.rank-track {
+  flex: 1;
+  height: 3px;
+  background: var(--rule-soft);
+  overflow: hidden;
+}
+
+.rank-track span {
+  display: block;
+  height: 100%;
+  background: var(--seal);
+  transition: width 0.4s ease;
+}
+
+.rank-next {
+  font-size: 11px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-list li {
+  /* 名次 / 名字 / 段位 / 天梯分 / 盘数 */
+  grid-template-columns: 24px minmax(0, 1fr) auto auto auto;
+}
+
+.board-tier {
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.history li.is-link {
+  cursor: pointer;
+}
+
+.history li.is-link:hover {
+  background: rgba(21, 24, 26, 0.025);
+}

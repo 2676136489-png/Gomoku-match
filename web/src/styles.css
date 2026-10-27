@@ -1,0 +1,1369 @@
+/* ==========================================================================
+   山水棋院 · 基础层
+   --------------------------------------------------------------------------
+   底色不是「米黄纸」，是山水画里那种冷灰白——纸偏青，墨偏蓝，远山用青灰分三层。
+   颜色只有：纸、墨（五档）、远山（四档青灰）、朱砂。花青石绿只是墨的延伸。
+   形状一律是方的，线是 1px 墨线，靠留白、字距和远山撑气韵。
+   ========================================================================== */
+
+:root {
+  /* 纸：冷灰白，不是暖米色 */
+  --paper: #eef0ec;
+  --paper-hi: #f7f8f4;
+  --paper-lo: #e2e5de;
+  --paper-deep: #d5d9d1;
+
+  /* 墨分五色：焦、浓、重、淡、清（偏冷，不带黄） */
+  --ink: #15181a;
+  --ink-1: #292e32;
+  --ink-2: #485157;
+  --ink-3: #737d82;
+  --ink-4: #9aa4a8;
+  --ink-5: #c3cac8;
+
+  /* 远山四档：越远越淡越偏蓝 */
+  --mtn-far: #ccd8dc;
+  --mtn-mid: #9db2ba;
+  --mtn-near: #5f7482;
+  --mtn-deep: #37474f;
+
+  /* 颜料 */
+  --seal: #a63628; /* 朱砂 */
+  --seal-deep: #87291e;
+  --indigo: #33505f; /* 花青 */
+  --jade: #3f6656; /* 石绿 */
+  --ochre: #a3752c; /* 赭石 */
+
+  /* 线与影 */
+  --rule: rgba(21, 24, 26, 0.16);
+  --rule-soft: rgba(21, 24, 26, 0.075);
+  --rule-strong: rgba(21, 24, 26, 0.3);
+  --lift: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 14px 28px -26px rgba(21, 24, 26, 0.8);
+
+  /* 字 */
+  --font-kai: "STKaiti", "KaiTi", "Kaiti SC", "楷体", "FangSong", serif;
+  --font-song: "Songti SC", "STSong", "SimSun", "宋体", serif;
+  --font-sans: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+  /* 宣纸纤维：feTurbulence 生成的半透明灰度，比贴一张图轻得多 */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.05'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.72;
+  color: var(--ink-1);
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(1200px 700px at 10% -12%, rgba(255, 255, 255, 0.85), transparent 58%),
+    radial-gradient(880px 560px at 94% -4%, rgba(70, 92, 105, 0.07), transparent 64%),
+    radial-gradient(1100px 760px at 50% 110%, rgba(70, 92, 105, 0.1), transparent 70%),
+    var(--grain);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------- 远山 */
+
+/*
+ * 一整幅山水压在页面底下：三层山脊 + 云雾 + 飞鸟，纯 SVG，没有一张图。
+ * 山脊本身是平滑的贝塞尔，靠 feTurbulence + feDisplacementMap 把边缘打碎，
+ * 才有了毛笔拖过去那种毛边——纯路径画出来的山太干净，一眼是矢量图。
+ */
+.landscape {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 44vh;
+  min-height: 300px;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.landscape svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.landscape .ridge-far {
+  fill: var(--mtn-far);
+}
+
+.landscape .ridge-mid {
+  fill: var(--mtn-mid);
+}
+
+.landscape .ridge-near {
+  fill: var(--mtn-near);
+}
+
+/* 苔点：近山脊线上点的那一层，笔尖蘸墨、疏密不均 */
+.landscape .moss {
+  fill: var(--mtn-deep);
+}
+
+/* 皴笔：纸色挖出来的短线，山石的骨 */
+.landscape .cun {
+  fill: none;
+  stroke: var(--paper);
+  stroke-linecap: round;
+}
+
+/* 云带：一条横贯画面的雾，山被它截成两截，才有「深远」 */
+.landscape .mist-a {
+  stop-color: var(--paper);
+  stop-opacity: 0;
+}
+
+.landscape .mist-b {
+  stop-color: var(--paper);
+  stop-opacity: 0.6;
+}
+
+.landscape .mist-c {
+  stop-color: var(--paper);
+  stop-opacity: 0;
+}
+
+.landscape .fog-a {
+  stop-color: var(--paper);
+  stop-opacity: 0;
+}
+
+.landscape .fog-b {
+  stop-color: var(--paper);
+  stop-opacity: 0.42;
+}
+
+/* 飞鸟：两笔一翼，收笔轻 */
+.landscape .bird {
+  stroke: var(--ink-2);
+  stroke-width: 1.8;
+  fill: none;
+  stroke-linecap: round;
+  opacity: 0.52;
+}
+
+@media (max-width: 760px) {
+  .landscape {
+    height: 30vh;
+    min-height: 180px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landscape * {
+    animation: none !important;
+  }
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-family: var(--font-kai);
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: 0.05em;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--seal-deep);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(166, 54, 40, 0.3);
+}
+
+a:hover {
+  border-bottom-color: var(--seal);
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+::selection {
+  background: rgba(166, 54, 40, 0.16);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid rgba(166, 54, 40, 0.55);
+  outline-offset: 2px;
+}
+
+/* 滚动条也收回木色，别在宣纸上横一条银灰 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-5) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--ink-5);
+  border-radius: 9px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ------------------------------------------------------------------ 骨架 */
+
+.app {
+  position: relative;
+  /* 压在远山层（z-index: 0）之上 */
+  z-index: 1;
+  /*
+   * 左右内边距抽成变量：顶栏和页脚都要用负数外边距铺满整宽，
+   * 写死 -30px 在窄屏（内边距收到 18px）就会多出 12px 横向溢出。
+   */
+  --pad: 30px;
+  --pad-b: 44px;
+  max-width: 1260px;
+  margin: 0 auto;
+  padding: 0 var(--pad) var(--pad-b);
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin: 0 calc(var(--pad) * -1) 26px;
+  padding: 14px var(--pad) 13px;
+  background: linear-gradient(180deg, rgba(247, 248, 244, 0.94), rgba(238, 240, 236, 0.9));
+  border-bottom: 1px solid var(--rule);
+  backdrop-filter: blur(8px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+/* 朱砂印：一块方印压在纸头上 */
+.brand-mark {
+  position: relative;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 3px;
+  background: linear-gradient(160deg, #b33c2c, var(--seal-deep));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.28) inset, 0 2px 6px -3px rgba(135, 41, 30, 0.8);
+  transform: rotate(-1.5deg);
+}
+
+.brand-mark::after {
+  content: "棋";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-kai);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--paper-hi);
+  opacity: 0.94;
+}
+
+.brand h1 {
+  font-size: 19px;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+}
+
+.brand p {
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.nav-item {
+  position: relative;
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 7px 13px 9px;
+  font-family: var(--font-kai);
+  font-size: 15.5px;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color 0.16s;
+}
+
+.nav-item::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--seal);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.2s ease;
+}
+
+.nav-item:hover {
+  color: var(--ink-1);
+}
+
+.nav-item.is-active {
+  color: var(--ink);
+}
+
+.nav-item.is-active::after {
+  transform: scaleX(1);
+}
+
+.topbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 16px;
+  border-left: 1px solid var(--rule);
+}
+
+.foot {
+  margin: 40px calc(var(--pad) * -1) calc(var(--pad-b) * -1);
+  padding: 14px var(--pad) 20px;
+  border-top: 1px solid var(--rule-soft);
+  font-size: 12px;
+  color: var(--ink-3);
+  letter-spacing: 0.03em;
+  /* 页脚落在山脚上，垫一层雾，字才读得清 */
+  background: linear-gradient(
+    180deg,
+    rgba(238, 240, 236, 0) 0%,
+    rgba(238, 240, 236, 0.86) 40%,
+    rgba(238, 240, 236, 0.96) 100%
+  );
+}
+
+.foot a {
+  margin-left: 8px;
+  color: var(--ink-3);
+  border-bottom-color: var(--rule);
+}
+
+.boot {
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  min-height: 58vh;
+  font-family: var(--font-kai);
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+}
+
+.boot p {
+  font-size: 14px;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(23, 21, 15, 0.14);
+  border-top-color: var(--seal);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.notfound {
+  display: grid;
+  gap: 12px;
+  place-items: start;
+  padding: 80px 0;
+}
+
+.notfound h2 {
+  font-size: 26px;
+}
+
+.notfound p {
+  color: var(--ink-3);
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.page-head h2 {
+  font-size: 26px;
+  letter-spacing: 0.14em;
+}
+
+.page-head p {
+  margin-top: 6px;
+  max-width: 62ch;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--ink-3);
+}
+
+/* ------------------------------------------------------------------ 面板 */
+
+.panel {
+  position: relative;
+  padding: 17px 19px 18px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0)), var(--paper-hi);
+  box-shadow: var(--lift);
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 13px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.panel-head h2 {
+  position: relative;
+  padding-left: 11px;
+  font-size: 17px;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+}
+
+/* 标题前一道朱砂短竖，像书页上的标签 */
+.panel-head h2::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.3em;
+  width: 3px;
+  height: 0.92em;
+  border-radius: 1px;
+  background: var(--seal);
+  opacity: 0.85;
+}
+
+.panel-note {
+  flex: 0 1 auto;
+  font-size: 11.5px;
+  color: var(--ink-4);
+  letter-spacing: 0.04em;
+  text-align: right;
+  line-height: 1.5;
+}
+
+.empty-note {
+  padding: 14px 0;
+  font-size: 13px;
+  color: var(--ink-4);
+  letter-spacing: 0.03em;
+}
+
+.dim {
+  color: var(--ink-4);
+}
+
+.coord {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+
+/* ------------------------------------------------------------- 按钮与控件 */
+
+.btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--ink-5);
+  border-radius: 2px;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-1);
+  cursor: pointer;
+  transition: border-color 0.16s, background 0.16s, color 0.16s;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--ink-3);
+  background: rgba(23, 21, 15, 0.035);
+}
+
+.btn:active:not(:disabled) {
+  background: rgba(23, 21, 15, 0.07);
+}
+
+.btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper-hi);
+}
+
+.btn-primary:hover:not(:disabled) {
+  border-color: #2d2820;
+  background: #2d2820;
+}
+
+.btn-primary:active:not(:disabled) {
+  background: #000;
+}
+
+.link-btn {
+  appearance: none;
+  border: 0;
+  border-bottom: 1px dashed var(--ink-5);
+  background: none;
+  padding: 2px 0;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color 0.16s, border-color 0.16s;
+}
+
+.link-btn:hover {
+  color: var(--seal-deep);
+  border-bottom-color: rgba(166, 54, 40, 0.45);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.4);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.pill-live,
+.pill-win {
+  border-color: rgba(63, 102, 86, 0.4);
+  background: rgba(63, 102, 86, 0.09);
+  color: var(--jade);
+}
+
+.pill-lose,
+.pill-ban {
+  border-color: rgba(166, 54, 40, 0.4);
+  background: rgba(166, 54, 40, 0.09);
+  color: var(--seal-deep);
+}
+
+.pill-wait {
+  border-color: rgba(163, 117, 44, 0.42);
+  background: rgba(163, 117, 44, 0.1);
+  color: #86601f;
+}
+
+.pill-thinking {
+  border-color: rgba(51, 80, 95, 0.4);
+  background: rgba(51, 80, 95, 0.09);
+  color: var(--indigo);
+}
+
+.pill-done {
+  border-color: var(--rule-strong);
+  color: var(--ink-1);
+}
+
+.pill-idle,
+.pill-muted {
+  color: var(--ink-4);
+  background: transparent;
+}
+
+.pill-accent {
+  border-color: rgba(166, 54, 40, 0.45);
+  color: var(--seal-deep);
+  background: rgba(166, 54, 40, 0.06);
+}
+
+.pill-user {
+  border-color: transparent;
+  background: transparent;
+  font-family: var(--font-kai);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--ink-1);
+}
+
+.pill-quiet {
+  appearance: none;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-4);
+  cursor: pointer;
+  transition: color 0.16s;
+}
+
+.pill-quiet:hover {
+  color: var(--seal-deep);
+}
+
+.chip {
+  appearance: none;
+  padding: 5px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.32);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color 0.16s, background 0.16s, color 0.16s;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: var(--ink-4);
+  color: var(--ink);
+}
+
+.chip.is-active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper-hi);
+}
+
+.chip:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.chip em {
+  display: block;
+  margin-top: 1px;
+  font-style: normal;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--ink-4);
+}
+
+.chip.is-active em {
+  color: rgba(247, 248, 244, 0.66);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chips-4 > .chip {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+}
+
+.seg-group {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.seg {
+  flex: 1 1 0;
+  appearance: none;
+  border: 0;
+  border-radius: 1px;
+  background: transparent;
+  padding: 6px 4px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background 0.16s, color 0.16s;
+}
+
+.seg:hover:not(:disabled) {
+  color: var(--ink);
+  background: rgba(23, 21, 15, 0.04);
+}
+
+.seg.is-active {
+  background: var(--ink);
+  color: var(--paper-hi);
+}
+
+.seg:disabled {
+  opacity: 0.34;
+  cursor: not-allowed;
+}
+
+.seg-tight .seg {
+  padding: 5px 10px;
+  font-size: 12.5px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field > span {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+
+/* 原生输入框基线：不写这一段，浏览器会给一圈白底圆角，跟纸面完全打架 */
+input[type="text"],
+input[type="password"],
+input[type="search"],
+input[type="number"],
+input[type="email"],
+textarea,
+select {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.55);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.16s, background 0.16s, box-shadow 0.16s;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+input[type="number"]:focus,
+input[type="email"]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--ink-3);
+  background: #fffdf6;
+  box-shadow: 0 0 0 3px rgba(23, 21, 15, 0.05);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-4);
+}
+
+input:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink);
+  box-shadow: 0 0 0 40px var(--paper-hi) inset;
+}
+
+input[type="range"] {
+  width: 100%;
+  height: 20px;
+  appearance: none;
+  background: transparent;
+  accent-color: var(--seal);
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--ink-5);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  margin-top: -5.5px;
+  border-radius: 50%;
+  background: var(--seal);
+  box-shadow: 0 1px 2px rgba(135, 41, 30, 0.4);
+}
+
+.toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.toggle input {
+  appearance: none;
+  flex: 0 0 auto;
+  position: relative;
+  width: 34px;
+  height: 18px;
+  margin: 4px 0 0;
+  border: 1px solid var(--ink-5);
+  border-radius: 10px;
+  background: var(--paper-lo);
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s;
+}
+
+.toggle input::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink-4);
+  transition: transform 0.18s, background 0.18s;
+}
+
+.toggle input:checked {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.toggle input:checked::after {
+  transform: translateX(16px);
+  background: var(--paper-hi);
+}
+
+.toggle > span {
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  color: var(--ink-1);
+}
+
+.toggle em {
+  display: block;
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 11.5px;
+  line-height: 1.6;
+  letter-spacing: 0;
+  color: var(--ink-4);
+}
+
+.toggle.is-disabled {
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 主按钮占满一行。曾经写成 .btn-primary { grid-column: span 3 }，
+   结果泄漏到登录表单，凭空造出三条列轨道。 */
+.actions > .btn-primary {
+  flex: 1 1 100%;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--seal);
+  border-radius: 2px;
+  background: rgba(166, 54, 40, 0.06);
+  font-size: 13px;
+  color: var(--ink-1);
+}
+
+.banner-error {
+  border-left-color: var(--seal);
+  color: var(--seal-deep);
+}
+
+.banner-review {
+  display: block;
+  border-left-color: var(--ink-2);
+  background: rgba(23, 21, 15, 0.045);
+  color: var(--ink-1);
+}
+
+.banner-review b {
+  font-family: var(--font-kai);
+  letter-spacing: 0.1em;
+}
+
+.banner-review p {
+  margin-top: 6px;
+  line-height: 1.8;
+}
+
+.banner-close {
+  appearance: none;
+  margin-top: 8px;
+  border: 0;
+  border-bottom: 1px dashed var(--ink-5);
+  background: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------------ 对局 */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 392px;
+  gap: 24px;
+  align-items: start;
+}
+
+.board-column,
+.side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.play {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.play-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.play-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+/* 棋墩：深胡桃木边框包住浅木棋盘 */
+.board-frame {
+  position: relative;
+  /* 画布宽度封顶 700，衬边 7px → 714。必须给显式 width：
+     .board-column 是纵向 flex，只写 margin:auto 会让元素退化成 fit-content，
+     棋盘就永远停在初始 560，撑不满可用宽度。 */
+  width: min(100%, 714px);
+  margin-inline: auto;
+  padding: 7px;
+  border-radius: 5px;
+  background: linear-gradient(158deg, #6d5940 0%, #4b3b28 52%, #3d2f1f 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.22) inset,
+    0 0 0 1px rgba(35, 26, 16, 0.5),
+    0 20px 38px -26px rgba(23, 21, 15, 0.95);
+}
+
+.board-wrap {
+  display: flex;
+  justify-content: center;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.board-canvas {
+  display: block;
+  border-radius: 2px;
+}
+
+.board-canvas.is-interactive {
+  cursor: crosshair;
+}
+
+.board-overlay {
+  position: absolute;
+  inset: 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 3px;
+  background: rgba(238, 240, 236, 0.78);
+  backdrop-filter: blur(2px);
+  font-family: var(--font-kai);
+  letter-spacing: 0.12em;
+  color: var(--ink-2);
+}
+
+.board-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 2px;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--ink-4);
+}
+
+.hint-note {
+  color: var(--jade);
+}
+
+.result-note {
+  font-family: var(--font-kai);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--ink-1);
+}
+
+.result-note.is-ban {
+  color: var(--seal-deep);
+}
+
+.board-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 9px 0 2px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.heat-toggle {
+  appearance: none;
+  padding: 5px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color 0.16s, background 0.16s, color 0.16s;
+}
+
+.heat-toggle:hover:not(:disabled) {
+  border-color: var(--ink-4);
+}
+
+.heat-toggle.is-on {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper-hi);
+}
+
+.heat-toggle:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.heat-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-4);
+}
+
+.heat-legend b {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 1px 6px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.45);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-2);
+  cursor: default;
+}
+
+.heat-legend b i {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--ink-4);
+}
+
+/* --------------------------------------------------------------- 通用曲线 */
+
+.chart-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 17px;
+  border: 1px dashed var(--rule);
+  border-radius: 2px;
+  /* 同样不能半透明：这一块也直接落在山水层上 */
+  background: var(--paper-hi);
+  font-size: 12.5px;
+  color: var(--ink-4);
+}
+
+.chart-empty span {
+  font-family: var(--font-kai);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+}
+
+.chart {
+  position: relative;
+  /* 曲线和它下面的淡墨都由 currentColor 来，领先/落后只改这一个值 */
+  color: var(--ink-1);
+  padding: 12px 16px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  /* 不能半透明：底下是山水层，42% 白盖上去只剩一片脏灰，曲线读不出来 */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0)), var(--paper-hi);
+  box-shadow: var(--lift);
+}
+
+.chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-family: var(--font-kai);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  color: var(--ink-2);
+}
+
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: 92px;
+}
+
+.chart-axis {
+  stroke: rgba(23, 21, 15, 0.24);
+  stroke-width: 1;
+  stroke-dasharray: 4 5;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-line {
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-dot {
+  fill: var(--seal);
+}
+
+.chart-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-4);
+}
+
+.chart-verdict {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.chart-verdict.ahead {
+  color: var(--jade);
+}
+
+.chart-verdict.behind {
+  color: var(--seal-deep);
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--ink-4);
+}
+
+.legend .lg {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  border-radius: 1px;
+  vertical-align: -1px;
+}
+
+.ln-black {
+  background: var(--ink);
+}
+
+.ln-white {
+  background: #fbfcf8;
+  box-shadow: inset 0 0 0 1px var(--ink-5);
+}
+
+.dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dot-black {
+  background: radial-gradient(circle at 34% 30%, #6b6559, #17150f 62%);
+  box-shadow: 0 1px 2px rgba(23, 21, 15, 0.4);
+}
+
+.dot-white {
+  background: radial-gradient(circle at 34% 30%, #ffffff, #e3d8c2 66%);
+  box-shadow: inset 0 0 0 1px rgba(23, 21, 15, 0.22);
+}
+
+/* ------------------------------------------------------------------ 响应式 */
+
+@media (max-width: 1120px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+
+@media (max-width: 980px) {
+  .app {
+    --pad: 18px;
+    --pad-b: 36px;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    margin: 0 calc(var(--pad) * -1) 20px;
+    padding: 12px var(--pad);
+  }
+
+  .nav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    overflow-x: auto;
+  }
+
+  .nav-item {
+    padding: 5px 10px 8px;
+  }
+
+  .topbar-meta {
+    margin-left: auto;
+    padding-left: 12px;
+  }
+
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .brand p {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    font-size: 13.5px;
+  }
+
+  .brand h1 {
+    font-size: 17px;
+  }
+
+  .brand p {
+    display: none;
+  }
+
+  .panel {
+    padding: 14px 14px 15px;
+  }
+}

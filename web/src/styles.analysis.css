@@ -1,0 +1,791 @@
+/* ==========================================================================
+   水墨棋院 · 分析层
+   --------------------------------------------------------------------------
+   胜率、落点预测、棋形普查、单步解说。
+   原则：数字比装饰重要，所以这里不做花哨的卡片，只有墨线、留白和必要的色标。
+   色标只有四样：墨（你）、淡墨（对手）、朱砂（警告与致胜）、石绿（改善）。
+   ========================================================================== */
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 1120px) {
+  .analysis-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ------------------------------------------------------------------ 页签 */
+
+.panel-analysis {
+  display: flex;
+  flex-direction: column;
+}
+
+.an-tabs {
+  display: flex;
+  gap: 20px;
+  margin: -2px 0 14px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.an-tab {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0 0 8px;
+  font-family: var(--font-kai);
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  /* 末字的字距会把文本宽度顶出 max-content 一格，「胜率」被拆成两行 */
+  white-space: nowrap;
+  color: var(--ink-4);
+  cursor: pointer;
+  transition: color 0.16s;
+}
+
+.an-tab:hover {
+  color: var(--ink-2);
+}
+
+.an-tab.is-active {
+  color: var(--ink);
+  box-shadow: 0 1px 0 0 var(--seal);
+}
+
+.an-body {
+  display: grid;
+  gap: 14px;
+}
+
+.an-foot {
+  font-size: 11.5px;
+  line-height: 1.75;
+  color: var(--ink-4);
+  letter-spacing: 0.02em;
+}
+
+/* ------------------------------------------------------------ 胜率（主） */
+
+.rate-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--rule);
+}
+
+.rate-hero b {
+  font-family: var(--font-song);
+  font-size: 44px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.rate-hero b i {
+  margin-left: 2px;
+  font-family: var(--font-sans);
+  font-size: 19px;
+  font-style: normal;
+  color: var(--ink-4);
+}
+
+.rate-hero.is-ahead b {
+  color: var(--jade);
+}
+
+.rate-hero.is-behind b {
+  color: var(--seal-deep);
+}
+
+.rate-hero > span {
+  display: grid;
+  gap: 2px;
+  font-family: var(--font-kai);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  color: var(--ink-2);
+}
+
+.rate-hero em {
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-4);
+}
+
+.rate-bar {
+  display: flex;
+  height: 8px;
+  border: 1px solid var(--rule);
+  border-radius: 1px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.rate-mine {
+  background: linear-gradient(180deg, var(--ink-2), var(--ink));
+  transition: width 0.3s ease;
+}
+
+.rate-theirs {
+  flex: 1 1 auto;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(23, 21, 15, 0.09) 0 4px,
+    rgba(23, 21, 15, 0.02) 4px 8px
+  );
+}
+
+.rate-reason {
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--ink-2);
+}
+
+/* --------------------------------------------------------- 可数的原始量 */
+
+.facts {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 0 0;
+  list-style: none;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.fact-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.fact-head b {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-1);
+}
+
+.fact-head b:last-child {
+  color: var(--ink-3);
+}
+
+.fact-head span {
+  flex: 1 1 auto;
+  font-family: var(--font-song);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink-4);
+  text-align: center;
+}
+
+.fact-track {
+  position: relative;
+  height: 4px;
+  border-radius: 1px;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(23, 21, 15, 0.08) 0 4px,
+    rgba(23, 21, 15, 0.02) 4px 8px
+  );
+}
+
+.fact-mine {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ink);
+  border-radius: 1px;
+  transition: left 0.3s ease;
+}
+
+/* ------------------------------------------------------------ 落点预测 */
+
+.pred-head {
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--ink-3);
+}
+
+.pred-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.pred-list > li {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.pred-list > li:last-child {
+  border-bottom: 0;
+}
+
+.pred-row {
+  appearance: none;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 16px 54px minmax(0, 1fr) 40px;
+  gap: 9px;
+  align-items: center;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.14s;
+}
+
+.pred-row:hover {
+  background: rgba(23, 21, 15, 0.035);
+}
+
+.pred-rank {
+  font-family: var(--font-song);
+  font-size: 11px;
+  color: var(--ink-4);
+  text-align: center;
+}
+
+.pred-coord {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--ink-1);
+}
+
+.pred-bar {
+  height: 5px;
+  border-radius: 1px;
+  background: rgba(23, 21, 15, 0.06);
+  overflow: hidden;
+}
+
+.pred-bar i {
+  display: block;
+  height: 100%;
+  background: var(--ink-3);
+  border-radius: 1px;
+  transition: width 0.3s ease;
+}
+
+.pred-row.is-top .pred-bar i {
+  background: var(--seal);
+}
+
+.pred-row.is-top .pred-coord {
+  color: var(--seal-deep);
+}
+
+.pred-share {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-3);
+  text-align: right;
+}
+
+.pred-row.is-top .pred-share {
+  color: var(--seal-deep);
+}
+
+.pred-why {
+  margin: 2px 0 0 63px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-4);
+}
+
+/* -------------------------------------------------------------- 数据页 */
+
+.data-block {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.data-block:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.data-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.data-title span {
+  font-family: var(--font-kai);
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  color: var(--ink-1);
+}
+
+.data-title em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+.shape-rows {
+  display: grid;
+  gap: 5px;
+}
+
+.shape-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 58px;
+  gap: 10px;
+  align-items: center;
+  font-size: 11.5px;
+}
+
+.shape-name {
+  font-family: var(--font-kai);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+}
+
+.shape-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shape-bars i {
+  display: block;
+  height: 4px;
+  border-radius: 1px;
+  transition: width 0.3s ease;
+}
+
+.sb-black {
+  background: var(--ink);
+}
+
+.sb-white {
+  background: var(--ink-5);
+}
+
+.shape-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-4);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
+  margin: 0;
+}
+
+.data-grid > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px dotted var(--rule);
+}
+
+.data-grid dt {
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-4);
+}
+
+.data-grid dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-1);
+}
+
+/* 可靠性表：预测区间 / 样本 / 实际胜率 */
+.rel-table {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.rel-head,
+.rel-row {
+  display: grid;
+  grid-template-columns: 64px 44px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 11px;
+}
+
+.rel-head {
+  border-bottom: 1px solid var(--rule-soft);
+  font-family: var(--font-song);
+  letter-spacing: 0.08em;
+  color: var(--ink-4);
+}
+
+.rel-head span:last-child {
+  text-align: right;
+}
+
+.rel-row {
+  border-bottom: 1px dotted var(--rule-soft);
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+}
+
+.rel-row:last-child {
+  border-bottom: 0;
+}
+
+.rel-row > span:last-child {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  color: var(--ink-1);
+}
+
+.rel-row i {
+  display: block;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--ink-4);
+  opacity: 0.5;
+}
+
+/* ------------------------------------------------------------ 单步解说 */
+
+.panel-explain.is-empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.panel-explain.is-empty .feed-empty {
+  padding: 18px 0 6px;
+  line-height: 1.9;
+}
+
+.ex-head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+
+.ex-head b {
+  font-family: var(--font-kai);
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+
+.ex-verdict {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  font-family: var(--font-kai);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+
+.ex-verdict.tone-win {
+  color: var(--seal-deep);
+  background: rgba(166, 54, 40, 0.08);
+}
+
+.ex-verdict.tone-good {
+  color: var(--jade);
+  background: rgba(63, 102, 86, 0.08);
+}
+
+.ex-verdict.tone-neutral {
+  color: var(--ink-3);
+}
+
+.ex-verdict.tone-bad {
+  color: var(--seal-deep);
+  border-style: dashed;
+}
+
+.ex-verdict.tone-ban {
+  color: var(--paper-hi);
+  background: var(--seal);
+  border-color: var(--seal);
+}
+
+.ex-close {
+  appearance: none;
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: all 0.16s;
+}
+
+.ex-close:hover {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+
+/* 解说正文：用楷体，读起来像旁白，不像机器在报数 */
+.ex-narrative {
+  padding: 11px 13px;
+  border-left: 2px solid var(--rule-strong);
+  background: rgba(255, 255, 255, 0.4);
+  font-family: var(--font-kai);
+  font-size: 14.5px;
+  line-height: 1.95;
+  letter-spacing: 0.02em;
+  color: var(--ink-1);
+}
+
+.ex-facts {
+  display: grid;
+  gap: 5px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ex-facts li {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 9px;
+  align-items: baseline;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+
+.ex-kind {
+  padding: 0 4px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  font-family: var(--font-song);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-4);
+  text-align: center;
+}
+
+.kind-miss .ex-kind {
+  border-color: rgba(166, 54, 40, 0.35);
+  color: var(--seal-deep);
+}
+
+.kind-save .ex-kind {
+  border-color: rgba(63, 102, 86, 0.35);
+  color: var(--jade);
+}
+
+.kind-alternative .ex-kind {
+  border-color: rgba(51, 80, 95, 0.3);
+  color: var(--indigo);
+}
+
+/* 胜率标记尺：落子前一个点，落子后一个点 */
+.ex-rate {
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.ex-rate-head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-bottom: 7px;
+  font-family: var(--font-song);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink-4);
+}
+
+.ex-rate-head b {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.ex-rate-head b.up {
+  color: var(--jade);
+}
+
+.ex-rate-head b.down {
+  color: var(--seal-deep);
+}
+
+.ex-rate-track {
+  position: relative;
+  height: 3px;
+  border-radius: 1px;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(23, 21, 15, 0.1) 0 4px,
+    rgba(23, 21, 15, 0.02) 4px 8px
+  );
+}
+
+.ex-mark {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 9px;
+  border-radius: 1px;
+}
+
+.ex-mark.before {
+  background: var(--ink-4);
+}
+
+.ex-mark.after {
+  background: var(--seal);
+  box-shadow: 0 0 0 2px rgba(166, 54, 40, 0.12);
+}
+
+.ex-rate-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-4);
+}
+
+.ex-alts {
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.ex-alts-head {
+  margin-bottom: 6px;
+  font-family: var(--font-song);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--ink-4);
+}
+
+.ex-alts ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ex-alts li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.ex-alts li .coord {
+  font-size: 12px;
+  color: var(--ink-1);
+}
+
+.ex-alts li em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+.ex-resume {
+  width: 100%;
+  margin-top: 15px;
+  padding: 10px 16px;
+  font-family: var(--font-kai);
+  font-size: 15px;
+  letter-spacing: 0.14em;
+}
+
+/* -------------------------------------------------------- 胜率曲线（纵向） */
+
+.wr-chart {
+  padding-bottom: 9px;
+}
+
+.wr-chart.chart-ahead {
+  color: var(--jade);
+}
+
+.wr-chart.chart-behind {
+  color: var(--seal-deep);
+}
+
+.wr-svg {
+  height: 104px;
+}
+
+.wr-zone.top {
+  fill: rgba(63, 102, 86, 0.055);
+}
+
+.wr-zone.bottom {
+  fill: rgba(166, 54, 40, 0.045);
+}
+
+.wr-swing-line {
+  stroke: rgba(166, 54, 40, 0.45);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.wr-swing-dot {
+  fill: var(--seal);
+}
+
+.wr-swing-note {
+  color: var(--seal-deep);
+}
+
+.wr-jump {
+  appearance: none;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px dashed rgba(166, 54, 40, 0.4);
+  background: none;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--seal-deep);
+  cursor: pointer;
+}
+
+.wr-jump:hover {
+  border-bottom-color: var(--seal);
+}
