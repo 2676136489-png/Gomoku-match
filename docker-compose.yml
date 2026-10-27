@@ -1,0 +1,24 @@
+services:
+  gomoku:
+    build: .
+    image: gomoku-match:4.0.0
+    container_name: gomoku-match
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: 8000
+      GOMOKU_DB: /data/gomoku.db
+      GOMOKU_LOG: INFO
+    volumes:
+      # 账户、棋谱、天梯全在这个文件里。没有它，重启就是一次全部清空。
+      - gomoku-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  gomoku-data:

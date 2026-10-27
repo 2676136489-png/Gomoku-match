@@ -1,0 +1,14 @@
+# 运行时
+fastapi>=0.115
+uvicorn>=0.30
+pydantic>=2.7
+# WebSocket 支持。uvicorn 自己不带协议实现，缺了这个包实时对战的握手会直接失败。
+websockets>=12
+
+# 测试与工具（生产镜像可以不装，Makefile 里单独一步）
+httpx>=0.27
+
+# 代码实验室的 C++ 通道需要一个编译器，按 CXX -> g++ -> clang++ -> zig c++ 探测。
+# 系统里没有前三个时，可以额外装 ziglang（约 90 MB，自带 clang 前端）：
+#   pip install ziglang
+# 不装不影响 Python 通道和其余所有功能。
