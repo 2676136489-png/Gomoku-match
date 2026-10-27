@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# 前端
+node_modules/
+web/dist/
+
+# 本地
+.tmp/
+.env
+.env.local
+
+# 运行时数据：账户密码哈希与 token 摘要都在这里，不进仓库
+data/
+
+# 本地工具
+.workbuddy/
+# 编辑器
+.idea/
+.vscode/
