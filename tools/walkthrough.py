@@ -141,8 +141,8 @@ def main():
 
     # ---------------------------------------------------------------- 大厅
     print("\n[2] 大厅")
-    check("渲染大厅卡片", p.eval("document.querySelectorAll('.module-card').length") >= 5,
-          f"实际 {p.eval('document.querySelectorAll(\".module-card\").length')}")
+    cards = p.eval("document.querySelectorAll('.module-card').length")
+    check("渲染大厅卡片", cards >= 5, f"实际 {cards}")
     check("显示用户名", user in (p.eval("document.body.innerText") or ""))
     p.shot(str(SHOTS / "03-hub.png"))
 
@@ -153,8 +153,8 @@ def main():
     chapters = p.eval("document.querySelectorAll('.tut-nav button').length")
     check("章节列表非空", chapters >= 5, f"实际 {chapters}")
     check("教程正文有内容", len((p.eval("document.querySelector('.tut-body')?.innerText") or "")) > 200)
-    check("教程内嵌棋盘图", p.eval("document.querySelectorAll('.tut-demo svg').length") >= 1,
-          f"{p.eval('document.querySelectorAll(\".tut-demo svg\").length')} 个")
+    demos = p.eval("document.querySelectorAll('.tut-demo svg').length")
+    check("教程内嵌棋盘图", demos >= 1, f"{demos} 个")
     p.shot(str(SHOTS / "04-tutorial.png"))
     # 切到第二章
     p.eval("""
@@ -288,8 +288,8 @@ def main():
     print("\n[7] 算法竞技场")
     p.eval("location.hash = '#/arena'")
     time.sleep(1.6)
-    check("渲染对阵选择器", p.eval("document.querySelectorAll('.picker').length") >= 2,
-          f"{p.eval('document.querySelectorAll(\".picker\").length')} 个")
+    pickers = p.eval("document.querySelectorAll('.picker').length")
+    check("渲染对阵选择器", pickers >= 2, f"{pickers} 个")
 
     # 换成神经 vs 贪心，跑得快；这一段要验的是开局那一手和手数统计
     p.eval("""
