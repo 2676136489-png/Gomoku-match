@@ -2199,7 +2199,7 @@
    反推棋盘最大边长，整块布局跟着收窄居中——只压棋盘的话右边栏会被甩得很远。 */
 @media (min-width: 1081px) {
   .room-grid {
-    --overhead: 366px; /* 页头 + 玩家条 + 说明文字 + 页面下留白，实测值 */
+    --overhead: 396px; /* 页头 + 玩家条 + 说明文字 + 页面下留白，实测值 */
     max-width: min(100%, calc(100vh - var(--overhead) + var(--side) + var(--gap)));
     margin-inline: auto;
   }
@@ -2283,6 +2283,17 @@
 
 .room-clock.is-low {
   color: var(--seal);
+}
+
+/* 房间页的棋盘说明直接压在山水背景上，默认的 --ink-4 在浅色山水里几乎看不见，
+   补一层纸底和描边，保证任何背景下都能读。 */
+.room-board .board-caption {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  background: rgba(247, 248, 244, 0.88);
+  font-size: 13px;
+  color: var(--ink-2);
 }
 
 .room-side {
