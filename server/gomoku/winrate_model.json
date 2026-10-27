@@ -1,0 +1,96 @@
+{
+  "features": [
+    "log_ratio",
+    "occupancy"
+  ],
+  "weights": [
+    0.0,
+    0.732349,
+    0.0
+  ],
+  "mean": [
+    0.0,
+    0.095277
+  ],
+  "std": [
+    2.082336,
+    0.079769
+  ],
+  "predict": {
+    "prior_weight": 0.0,
+    "temperature": 0.6,
+    "top1": 0.4,
+    "top3": 0.675
+  },
+  "meta": {
+    "games": 700,
+    "samples": 35212,
+    "auc": 0.6809,
+    "brier": 0.2268,
+    "acc": 0.627,
+    "buckets": [
+      {
+        "range": "0-10%",
+        "n": 377,
+        "predicted": 0.0662,
+        "actual": 0.0265
+      },
+      {
+        "range": "10-20%",
+        "n": 1322,
+        "predicted": 0.1791,
+        "actual": 0.2625
+      },
+      {
+        "range": "20-30%",
+        "n": 1204,
+        "predicted": 0.2306,
+        "actual": 0.289
+      },
+      {
+        "range": "30-40%",
+        "n": 3499,
+        "predicted": 0.3479,
+        "actual": 0.2907
+      },
+      {
+        "range": "40-50%",
+        "n": 9805,
+        "predicted": 0.4601,
+        "actual": 0.4227
+      },
+      {
+        "range": "50-60%",
+        "n": 12603,
+        "predicted": 0.531,
+        "actual": 0.5601
+      },
+      {
+        "range": "60-70%",
+        "n": 3499,
+        "predicted": 0.6521,
+        "actual": 0.7093
+      },
+      {
+        "range": "70-80%",
+        "n": 1204,
+        "predicted": 0.7694,
+        "actual": 0.711
+      },
+      {
+        "range": "80-90%",
+        "n": 1322,
+        "predicted": 0.8209,
+        "actual": 0.7375
+      },
+      {
+        "range": "90-100%",
+        "n": 377,
+        "predicted": 0.9338,
+        "actual": 0.9735
+      }
+    ],
+    "generated": "2026-10-23",
+    "sample": "700 局自对弈，随机开局 + 贪心扰动 ε=0.25，其中 30% 的局面一方换用搜索"
+  }
+}
