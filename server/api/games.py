@@ -146,12 +146,12 @@ def make_move(game_id: str, req: MoveRequest, request: Request) -> dict:
         if game.status != "playing":
             raise HTTPException(409, "对局已结束")
         if game.pending is not None:
-            raise HTTPException(409, "先确认对手这一手（继续），再落子")
+            raise HTTPException(409, "请先确认待落子的一手，再继续落子")
         if not (0 <= req.x < SIZE and 0 <= req.y < SIZE):
             raise HTTPException(400, "坐标越界")
         side = game.turn
         if game.mode != "pvp" and side == opponent_of(game.human_color):
-            raise HTTPException(409, "还没轮到你")
+            raise HTTPException(409, "未到你的回合")
 
         idx = req.y * SIZE + req.x
         if game.pos.board[idx] != 0:
@@ -268,7 +268,7 @@ def explain_move(game_id: str, req: ExplainRequest, request: Request) -> dict:
     game = require_game(game_id, user)
     with game.lock:
         if not game.moves:
-            raise HTTPException(409, "对局还没有落子")
+            raise HTTPException(409, "对局尚无落子")
         if req.index is not None and not (0 <= req.index < len(game.moves)):
             raise HTTPException(400, "棋步索引越界")
         return {"explain": analysis.explain_move(game, req.index)}

@@ -72,7 +72,7 @@ export default function Controls({ config, settings, onChange, onNew, onUndo, on
             禁手判负
             <em>
               {settings.strict_ban
-                ? '正式赛制：黑棋落了禁手点立刻判负'
+                ? '正式赛制：黑棋落禁手点立即判负'
                 : '默认拦下并说明原因，棋局继续'}
             </em>
           </span>
@@ -165,8 +165,8 @@ export default function Controls({ config, settings, onChange, onNew, onUndo, on
           讲解模式
           <em>
             {settings.step && settings.mode !== 'pvp'
-              ? 'Agent 算好之后先停住，你点「继续」它才落子'
-              : '关掉时 Agent 走完直接轮到你的下一手'}
+              ? 'Agent 计算完成后暂停，点击「确认」再落子'
+              : '关闭后 Agent 计算完成即落子，不再逐步确认'}
           </em>
         </span>
       </label>

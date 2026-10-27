@@ -11,8 +11,8 @@ const LANGS = [
   { key: 'cpp', label: 'C++' },
 ]
 
-// 只认这两种语言的扩展名。少猜一点：把 .java 当 Python 传上去，
-// 报的是一堆语法错，用户根本不知道是文件类型不对。
+// 只识别这两种语言的扩展名，不做猜测：若把 .java 当作 Python 提交，
+// 返回的是一系列语法错误，用户无法判断根因是文件类型不符。
 const EXT_LANG = {
   py: 'python',
   pyw: 'python',
@@ -73,7 +73,7 @@ export default function Code({ config }) {
   const switchLang = (next) => {
     if (next === lang) return
     if (next === 'cpp' && !cppReady) {
-      setError(caps.cpp?.detail || 'C++ 通道不可用')
+      setError(caps.cpp?.detail || 'C++ 通道不可用，请检查编译器配置')
       return
     }
     setLang(next)
@@ -164,7 +164,7 @@ export default function Code({ config }) {
   const run = async () => {
     if (running) return
     if (lang === 'cpp' && !cppReady) {
-      setError('没有可用的 C++ 编译器，先换成 Python')
+      setError('未检测到可用的 C++ 编译器，请切换为 Python')
       return
     }
     setRunning(true)
@@ -228,8 +228,8 @@ export default function Code({ config }) {
         <div>
           <h2>代码工坊</h2>
           <p>
-            写一个 <code>choose_move</code>，或者直接把手上的 .py / .cpp 拖进来。代码跑在独立子进程里，
-            每手有超时，越权调用在静态校验阶段就会被拦下。
+            编写 <code>choose_move</code> 函数，或导入已有的 .py / .cpp 文件。代码在独立子进程中运行，
+            每手设有超时限制，越权调用会在静态校验阶段被拦截。
           </p>
         </div>
         <div className="lab-caps">
@@ -283,7 +283,7 @@ export default function Code({ config }) {
                 载入模板
               </button>
               <button type="button" className="link-btn" onClick={() => setShowArchive((v) => !v)}>
-                {showArchive ? '收起存档' : '看历史版本'}
+                {showArchive ? '收起存档' : '历史版本'}
               </button>
             </div>
           </div>
@@ -300,7 +300,7 @@ export default function Code({ config }) {
             <CodeEditor value={code} onChange={setCode} rows={24} />
             {dragging && (
               <div className="code-drop-hint">
-                <span>松手就导入</span>
+                <span>松开即可导入</span>
               </div>
             )}
           </div>
@@ -327,7 +327,7 @@ export default function Code({ config }) {
                 中止
               </button>
             )}
-            <span className="code-actions-note">校验只空盘试走一手，不等同于对局结果</span>
+            <span className="code-actions-note">校验仅在空盘试走一手，不代表对局结果</span>
           </div>
 
           {verify && (
@@ -416,7 +416,7 @@ export default function Code({ config }) {
               )}
 
               <label className="field">
-                <span>你的代码执</span>
+                <span>代码执子</span>
                 <div className="chips">
                   {[
                     { key: 1, label: '黑棋（先行）' },
@@ -467,7 +467,7 @@ export default function Code({ config }) {
                 <input type="checkbox" checked={avoidBans} onChange={(e) => setAvoidBans(e.target.checked)} />
                 <span>
                   自动避开禁手
-                  <em>你返回禁手点时改走贪心推荐的合法点，并在过程里标注</em>
+                  <em>返回禁手点时改为贪心推荐的合法点，并在过程中标注</em>
                 </span>
               </label>
             </div>

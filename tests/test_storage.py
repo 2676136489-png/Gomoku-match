@@ -95,7 +95,7 @@ def test_tables(tmp: Path) -> None:
 
     repo.create_session(user["id"], "expired", time.time() - 1)
     check("过期会话自动失效", repo.session_owner("expired") is None)
-    check("过期会话被顺手删掉", db.one("SELECT 1 FROM sessions WHERE digest='expired'") is None)
+    check("过期会话被清理", db.one("SELECT 1 FROM sessions WHERE digest='expired'") is None)
 
     repo.create_session(user["id"], "a" * 64, time.time() + 60)
     repo.delete_user_sessions(user["id"])

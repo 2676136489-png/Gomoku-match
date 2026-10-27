@@ -155,8 +155,8 @@ export default function Play({ mode, config, onUserChange }) {
       return { tone: 'lose', text: game.ban_loss ? '禁手判负' : 'Agent 获胜' }
     }
     if (busy) return { tone: 'thinking', text: 'Agent 思考中' }
-    if (game.pending) return { tone: 'wait', text: '等你看完再落子' }
-    return humanTurn ? { tone: 'live', text: '轮到你落子' } : { tone: 'wait', text: '等待对手' }
+    if (game.pending) return { tone: 'wait', text: '等待确认落子' }
+    return humanTurn ? { tone: 'live', text: '轮到你落子' } : { tone: 'wait', text: '等待对手落子' }
   }, [game, busy, humanTurn])
 
   const applyResponse = (res) => {
@@ -284,7 +284,7 @@ export default function Play({ mode, config, onUserChange }) {
         rule: game.rule,
       })
       setHeat(res.ready ? res.points : [])
-      if (!res.ready) setError('网络权重未加载')
+      if (!res.ready) setError('网络权重未加载，请稍后重试')
       setPredictOn(false)
     } catch (e) {
       setError(e.message)
@@ -371,7 +371,7 @@ export default function Play({ mode, config, onUserChange }) {
               {game?.status === 'finished'
                 ? '对局结束'
                 : game?.pending
-                  ? '它已经算好了，等你确认'
+                  ? '已计算完成，等待确认'
                   : game?.mode === 'pvp'
                     ? '黑白轮换，点击棋盘落子'
                     : '点击交叉点落子'}
@@ -407,7 +407,7 @@ export default function Play({ mode, config, onUserChange }) {
 
             {predictOn && predictTop.length > 0 && (
               <span className="heat-legend" data-legend="predict">
-                {insight?.prediction?.side === game?.human_color ? '你大概会落在：' : '它最可能落在：'}
+                {insight?.prediction?.side === game?.human_color ? '你的可能落点：' : '对手可能落点：'}
                 {predictTop.map((p) => (
                   <b key={`${p.x}-${p.y}`} title={p.why}>
                     {p.x},{p.y}

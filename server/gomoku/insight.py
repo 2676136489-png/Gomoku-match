@@ -33,8 +33,8 @@ MODEL_FILE = Path(__file__).resolve().parent / "winrate_model.json"
 #
 # 试过把「活三点数 / 冲四点数的差」也塞进去，AUC 只从 0.656 涨到 0.658，
 # 而且系数是负的——棋形总量已经把威胁信息吸收掉了，剩下的残差反映的是
-# 「我这边空着一堆能造杀招的点，说明对手没在压我」，方向正好反了。
-# 换来一个解释不清的系数不值这 0.002，所以只留两个：主信号 + 盘面阶段。
+# 「我方空点中可造杀招的点位很多，说明对手未施加压力」，方向正好相反。
+# 换来一个解释不清的系数不值这 0.002，因此只保留两个：主信号 + 盘面阶段。
 FEATURES = (
     "log_ratio",  # 双方棋形总量之比的对数
     "occupancy",  # 已落子占比，用来区分同一比值在开局和中盘的含义
@@ -521,7 +521,7 @@ def analyze(pos: Position, idx: int, color: int, meta: dict | None = None) -> di
 
     if opp_rank >= shapes.OPEN_THREE:
         facts.append(
-            {"kind": "defence", "text": f"这个点对手落下会形成{opp_label}，占了它等于顺手拆掉"}
+            {"kind": "defence", "text": f"该点若被对手占据会形成{opp_label}，占位后威胁解除"}
         )
 
     unaddressed = [i for i in lethal if i != idx]

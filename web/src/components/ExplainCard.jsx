@@ -8,7 +8,7 @@ const VERDICT = {
 
 const KIND_LABEL = {
   shape: '棋形',
-  defence: '顺手防',
+  defence: '兼顾防守',
   miss: '漏着',
   save: '救急',
   winrate: '胜率',
@@ -20,8 +20,8 @@ export default function ExplainCard({ explain, pending = false, busy, onResume, 
     return (
       <section className="panel panel-explain is-empty">
         <div className="panel-head">
-          <h2>这一手怎么想的</h2>
-          <span className="panel-note">点棋谱里任意一手</span>
+          <h2>本手解说</h2>
+          <span className="panel-note">点击棋谱中任意一手</span>
         </div>
         <p className="feed-empty">
           每落一手都会自动解说。棋谱里点某一手，也能看那一手当时为什么那么走。
@@ -39,7 +39,7 @@ export default function ExplainCard({ explain, pending = false, busy, onResume, 
   return (
     <section className={`panel panel-explain tone-${v.tone}`}>
       <div className="panel-head">
-        <h2>{pending ? '它打算这么走' : `第 ${(explain.index ?? 0) + 1} 手`}</h2>
+        <h2>{pending ? '预计算落子' : `第 ${(explain.index ?? 0) + 1} 手`}</h2>
         <span className="panel-note">
           {side}棋 {explain.x},{explain.y}
           {explain.think_ms > 0 ? ` · ${explain.think_ms}ms` : ''}
@@ -69,7 +69,7 @@ export default function ExplainCard({ explain, pending = false, busy, onResume, 
 
       <div className="ex-rate">
         <div className="ex-rate-head">
-          <span>这一手前后</span>
+          <span>本手前后</span>
           <b className={delta >= 0 ? 'up' : 'down'}>
             {delta >= 0 ? '+' : ''}
             {delta.toFixed(1)} 点
@@ -87,7 +87,7 @@ export default function ExplainCard({ explain, pending = false, busy, onResume, 
 
       {explain.alternatives?.length > 0 && (
         <div className="ex-alts">
-          <div className="ex-alts-head">当时还考虑过</div>
+          <div className="ex-alts-head">当时的其他候选</div>
           <ul>
             {explain.alternatives.map((a) => (
               <li key={`${a.x}-${a.y}`}>
@@ -103,7 +103,7 @@ export default function ExplainCard({ explain, pending = false, busy, onResume, 
 
       {pending && (
         <button type="button" className="btn btn-primary ex-resume" onClick={onResume} disabled={busy}>
-          {busy ? '落子中…' : '继续，让它走这一手'}
+          {busy ? '落子中…' : '确认，按此落子'}
         </button>
       )}
     </section>

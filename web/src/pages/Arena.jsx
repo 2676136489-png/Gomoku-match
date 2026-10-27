@@ -204,8 +204,8 @@ export default function Arena({ config }) {
           </div>
 
           <p className="arena-hint">
-            双方都是确定性算法，同一个开局必然跑出同一盘棋。所以第一手由服务端随机放（
-            <b>越靠中心概率越高</b>），从第二手起才交给算法——每点一次，开局都不一样。
+            双方均为确定性算法，相同开局必然得到相同棋局。因此第一手由服务端随机落子（
+            <b>越靠近中心概率越高</b>），第二手起交由算法处理，每次开局互不相同。
           </p>
 
           {Object.keys(tally).length > 0 && (
@@ -223,7 +223,7 @@ export default function Arena({ config }) {
           )}
 
           {meta('neural')?.ready === false && (
-            <p className="arena-warn">神经网络权重还没训练，选它会直接报错。先跑 tools/train_net.py。</p>
+            <p className="arena-warn">神经网络权重尚未训练，选择该算法会直接报错。请先执行 tools/train_net.py。</p>
           )}
         </section>
 
@@ -280,7 +280,7 @@ export default function Arena({ config }) {
               <span className="panel-note">最近 12 手</span>
             </div>
             {moves.length === 0 ? (
-              <p className="empty-note">还没有开局。</p>
+              <p className="empty-note">暂无对局记录。</p>
             ) : (
               <ul className="arena-moves">
                 {moves.slice(-12).map((m) => (

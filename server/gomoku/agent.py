@@ -26,7 +26,7 @@ PERSONAS = {
         "label": "锐攻",
         "attack": 1.0,
         "defence": 0.6,
-        "brief": "主动挑起战斗，优先做活三、冲四，愿意用局部交换换主动权",
+        "brief": "主动挑起战斗，优先做活三、冲四，以局部交换换取主动权",
     },
     "balanced": {
         "label": "均衡",
@@ -138,7 +138,7 @@ def _local_comment(pos: Position, cand: Candidate, color: int) -> str:
     elif mine == "眠三":
         parts.append("做眠三试探")
     if theirs in ("连五", "活四", "冲四", "活三"):
-        parts.append(f"顺手拆掉对手的{theirs}")
+        parts.append(f"同时化解对手的{theirs}")
     if not parts:
         return "先占中腹要点，保持棋形展开"
     return "，".join(parts)

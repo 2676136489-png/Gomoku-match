@@ -2,7 +2,7 @@
 
 所有 SQL 只出现在这个文件里。上层（accounts / store / realtime）拿到的都是普通
 字典，不接触 sqlite3.Row——Row 是「还连着游标的元组」，一旦被传出去并缓存，
-连接关闭之后就只剩一堆坏引用。
+连接关闭后这些引用即失效。
 
 返回值统一是 dict，时间统一是 Unix 秒（REAL），布尔统一是 int（0/1）。
 这三条一致性定了之后，序列化边界上不用再逐字段转换。
@@ -358,7 +358,7 @@ def list_rooms(status: str = "open", limit: int = 30) -> list[dict]:
 
 
 def reap_rooms(max_idle_seconds: float = 1800.0) -> int:
-    """回收开久了没人进的房间。房间不放着不管，大厅列表会积一堆死房。"""
+    """回收长时间无人进入的房间。若不清理，大厅列表会累积大量已失效房间。"""
     cutoff = time.time() - max_idle_seconds
     cur = db.execute(
         "UPDATE rooms SET status = 'closed' WHERE status = 'open' AND created_at < ?", (cutoff,)

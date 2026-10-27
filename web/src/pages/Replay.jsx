@@ -38,16 +38,16 @@ function Library() {
       <section className="page-head">
         <div>
           <h2>棋谱</h2>
-          <p>每局都落在库里，点开可以逐手回放。人机、在线、双人都在这里。</p>
+          <p>所有对局逐手入库，可逐手回放。人机、在线与双人对局均在此列。</p>
         </div>
         <span className="pill pill-quiet">{rows.length} 局</span>
       </section>
 
       {error && <p className="banner banner-error">{error}</p>}
       {loading ? (
-        <p className="empty-note">读取中…</p>
+        <p className="empty-note">正在读取…</p>
       ) : rows.length === 0 ? (
-        <p className="empty-note">还没有对局记录。下完一局就会出现在这里。</p>
+        <p className="empty-note">暂无对局记录，完成一局后显示。</p>
       ) : (
         <table className="replay-table">
           <thead>
@@ -174,7 +174,7 @@ function Player({ gameId }) {
     )
   }
 
-  if (!game) return <p className="empty-note">读取棋谱…</p>
+  if (!game) return <p className="empty-note">正在读取棋谱…</p>
 
   const current = index >= 0 ? moves[index] : null
 
@@ -270,7 +270,7 @@ function Player({ gameId }) {
                   <span className="feed-ms">{move.comment || ''}</span>
                 </button>
               ))}
-              {moves.length === 0 && <p className="empty-note">这一局没有落子。</p>}
+              {moves.length === 0 && <p className="empty-note">本局没有落子记录。</p>}
             </div>
           </div>
         </aside>

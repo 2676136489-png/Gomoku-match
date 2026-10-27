@@ -44,7 +44,7 @@ def require_game(game_id: str, user: dict) -> Game:
         raise HTTPException(404, "对局不存在")
     owners = {game.owner_id, game.black_id, game.white_id}
     if user["id"] not in owners:
-        raise HTTPException(403, "这局不是你的")
+        raise HTTPException(403, "无权访问该对局")
     return game
 
 

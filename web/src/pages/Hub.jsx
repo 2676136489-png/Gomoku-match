@@ -7,49 +7,49 @@ const MODULES = [
     index: '01',
     title: '在线对战',
     tag: '实时 · 计分',
-    desc: '跟真人下。服务端权威计时，断线可续，对局按 Elo 结算，胜负都改分。',
+    desc: '与真人实时对局。服务端权威计时，断线可续，胜负均计入 Elo 等级分。',
   },
   {
     path: '/play',
     index: '02',
     title: 'AI 对弈',
     tag: '完整对局',
-    desc: '选执黑或执白，跟引擎 Agent 下完整一盘。可换风格、调强度、悔棋、要提示、赛后复盘。',
+    desc: '自主选择执黑或执白，与引擎完成整局。支持切换风格、调整强度、悔棋、提示与复盘。',
   },
   {
     path: '/learn',
     index: '03',
     title: '学习模式',
     tag: '教练点评',
-    desc: '同样的对局，但每落一手都会告诉你：这一手形成了什么、对手的活三你挡住没有。',
+    desc: '同样的对局，逐手标注棋形，说明该手形成什么、对手的活三是否已被拦截。',
   },
   {
     path: '/tutorial',
     index: '04',
     title: '教程',
     tag: '从零开始',
-    desc: '规则与胜负、棋形分级、三种禁手，以及引擎到底怎么挑点。每节配一副可点的棋盘。',
+    desc: '规则与胜负、棋形分级、三种禁手，以及引擎如何选点。每节配一副可交互棋盘。',
   },
   {
     path: '/code',
     index: '05',
     title: '代码工坊',
-    tag: '写你自己的 AI',
-    desc: '自己写一个 choose_move，或者把手上的 .py / .cpp 直接拖进来跑。落点、耗时、禁手改动全程可查。',
+    tag: '自定义策略',
+    desc: '编写自己的 choose_move，或导入已有的 .py / .cpp 文件。落点、耗时与禁手判定全程可查。',
   },
   {
     path: '/arena',
     index: '06',
     title: '算法竞技场',
     tag: '对照实验',
-    desc: '随机、贪心、极小化极大、神经网络任选两方开打。棋力到底来自搜索还是评估，看完就有数。',
+    desc: '随机、贪心、极小化极大、神经网络两两对打，从数据上区分棋力来自搜索还是评估。',
   },
   {
     path: '/replay',
     index: '07',
     title: '棋谱',
     tag: '逐手回放',
-    desc: '每一局都落在库里。点开可以翻手、拖动进度、看当时的落点和耗时。',
+    desc: '每局均入库。可逐手翻看、拖动进度条，查看当时的落点与耗时。',
   },
 ]
 
@@ -79,11 +79,11 @@ export default function Hub({ user, config, onNavigate }) {
     <div className="hub">
       <section className="hub-hero">
         <div>
-          <h2>{user?.name}，今天想从哪儿开始</h2>
+          <h2>欢迎回来，{user?.name}</h2>
           <p>
             {stats.games
-              ? `你已经下了 ${stats.games} 盘，胜率 ${Math.round((stats.win_rate ?? 0) * 100)}%。`
-              : '还没有战绩，先去下一盘，统计会自动记下来。'}
+              ? `累计 ${stats.games} 盘，胜率 ${Math.round((stats.win_rate ?? 0) * 100)}%。`
+              : '暂无对局记录，完成首局后自动统计。'}
             {stats.streak > 1 ? ` 当前连胜 ${stats.streak} 场。` : ''}
           </p>
 
@@ -133,10 +133,10 @@ export default function Hub({ user, config, onNavigate }) {
         <div className="panel">
           <div className="panel-head">
             <h2>最近对局</h2>
-            <span className="panel-note">点一行进回放</span>
+            <span className="panel-note">点击查看回放</span>
           </div>
           {history.length === 0 ? (
-            <p className="empty-note">还没有结束的对局。</p>
+            <p className="empty-note">暂无已结束的对局。</p>
           ) : (
             <ul className="history">
               {history.slice(0, 8).map((item, i) => (
@@ -158,10 +158,10 @@ export default function Hub({ user, config, onNavigate }) {
         <div className="panel">
           <div className="panel-head">
             <h2>天梯</h2>
-            <span className="panel-note">按天梯分排序 · 只统计计分对局</span>
+            <span className="panel-note">按等级分排序 · 仅统计计分对局</span>
           </div>
           {board.length === 0 ? (
-            <p className="empty-note">还没有人上榜。下完第一盘计分局就会出现在这里。</p>
+            <p className="empty-note">暂无上榜玩家，完成首局计分对局后显示。</p>
           ) : (
             <ul className="board-list">
               {board.map((row) => (

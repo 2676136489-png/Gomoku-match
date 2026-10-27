@@ -38,7 +38,7 @@ export default function MoveFeed({ moves, agent, onPick, activeIndex }) {
       )}
 
       {feed.length === 0 ? (
-        <p className="feed-empty">还没有落子。</p>
+        <p className="feed-empty">暂无落子记录。</p>
       ) : (
         <ol className="feed">
           {feed.map((m, i) => {

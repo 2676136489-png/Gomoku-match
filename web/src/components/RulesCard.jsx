@@ -35,11 +35,11 @@ export default function RulesCard({ game }) {
       {renju && game?.status === 'playing' && (
         <p className="rule-note">
           {game.turn !== 1
-            ? '禁手点只在轮到黑棋时计算，轮到白棋时棋盘上不标。'
+            ? '禁手点仅在黑棋回合计算并在棋盘上标注，白棋回合不标注。'
             : banned.length > 0
               ? `当前有 ${banned.length} 个禁手点，棋盘上标了红叉。`
-              : '当前没有禁手点。'}
-          {game?.strict_ban ? ' 本局为赛制模式：落下禁手点直接判负。' : ' 本局禁手点会被拦下，不判负。'}
+              : '当前无禁手点。'}
+          {game?.strict_ban ? ' 本局为赛制模式：落禁手点直接判负。' : ' 本局禁手点会被拦截，不判负。'}
         </p>
       )}
     </section>

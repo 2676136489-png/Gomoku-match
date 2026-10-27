@@ -143,7 +143,7 @@ def main() -> None:
     # ---------------------------------------------------------------- 规则
     white.send({"type": "move", "x": 7, "y": 7})
     err = white.wait("error")
-    check("白棋抢先落子被拒", err is not None and "轮到你" in err["message"], str(err))
+    check("白棋抢先落子被拒", err is not None and "回合" in err["message"], str(err))
 
     black.send({"type": "move", "x": 99, "y": 0})
     err = black.wait("error")
@@ -161,7 +161,7 @@ def main() -> None:
 
     black.send({"type": "move", "x": 6, "y": 6})
     err = black.wait("error")
-    check("连下两手被拒", err is not None and "轮到你" in err["message"], str(err))
+    check("连下两手被拒", err is not None and "回合" in err["message"], str(err))
 
     white.send({"type": "move", "x": 7, "y": 8})
     check("白棋落子成功", white.wait("state") is not None)

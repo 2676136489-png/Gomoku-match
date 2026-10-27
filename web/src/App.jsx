@@ -71,7 +71,7 @@ export default function App() {
         <Landscape />
         <div className="boot">
           <span className="spinner" />
-          <p>正在连接棋院…</p>
+          <p>正在连接服务端…</p>
         </div>
       </>
     )
@@ -105,8 +105,8 @@ export default function App() {
       return <Room key={param ?? 'room'} gameId={param} user={user} />
     return (
       <div className="notfound">
-        <h2>没有这个页面</h2>
-        <p>路径 {route.path} 不在导航里。</p>
+        <h2>页面不存在</h2>
+        <p>路径 {route.path} 未在导航中注册。</p>
         <button type="button" className="btn btn-primary" onClick={() => navigate('/hub')}>
           回到大厅
         </button>

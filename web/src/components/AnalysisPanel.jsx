@@ -110,8 +110,8 @@ export default function AnalysisPanel({ insight, humanColor, onPickPoint, onPick
           <p className="pred-head">
             {insight.status === 'playing' ? (
               <>
-                {pred?.side === 1 ? '黑棋' : '白棋'}下一步最可能落在这些点。份额是候选池内的相对倾向，
-                不是统计概率——准不准看底下那行命中率。
+                {pred?.side === 1 ? '黑棋' : '白棋'}下一步最可能落在这几个点。份额表示候选池内的相对倾向，
+                不是统计概率，准确度见下方命中率。
               </>
             ) : (
               '对局已结束，没有待预测的一手。'
@@ -142,7 +142,7 @@ export default function AnalysisPanel({ insight, humanColor, onPickPoint, onPick
               ))}
             </ol>
           ) : (
-            <p className="feed-empty">没有可下点。</p>
+            <p className="feed-empty">无可落子点。</p>
           )}
 
           {model?.predict?.top3 != null && (
@@ -152,7 +152,7 @@ export default function AnalysisPanel({ insight, humanColor, onPickPoint, onPick
               {(model.predict.top3 * 100).toFixed(0)}%。
               {model.predict.prior_weight > 0
                 ? ` 叠加网络先验（权重 ${model.predict.prior_weight}）之后取表现最好的那一组参数。`
-                : ' 叠加网络先验没有在这个指标上带来差别，所以权重取 0：排序只用棋形分，网络自己的判断在「网络视角」里单独看。'}
+                : ' 叠加网络先验未在该指标上产生差异，权重取 0：排序仅使用棋形分，网络自身的判断在「网络视角」中单独查看。'}
             </p>
           )}
         </div>

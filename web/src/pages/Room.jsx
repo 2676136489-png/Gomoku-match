@@ -106,7 +106,7 @@ export default function Room({ gameId, user }) {
 
   const resign = () => {
     if (!game || game.status !== 'playing') return
-    if (!window.confirm('认输之后这一局就结束了，分数按负场结算。确定？')) return
+    if (!window.confirm('认输后本局立即结束，并按负场结算等级分。')) return
     sockRef.current?.send({ type: 'resign' })
   }
 
@@ -161,7 +161,7 @@ export default function Room({ gameId, user }) {
 
       {error && <p className="banner banner-error">{error}</p>}
       {status === 'reconnecting' && (
-        <p className="banner">连接断了，正在重连。重连成功会自动拿到最新局面。</p>
+        <p className="banner">连接已断开，正在重连。重连成功后自动同步最新局面。</p>
       )}
 
       <div className="room-grid">
@@ -214,7 +214,7 @@ export default function Room({ gameId, user }) {
               ? game.result_reason || '对局结束'
               : myTurn
                 ? '轮到你落子'
-                : '等对手落子'}
+                : '等待对手落子'}
           </p>
         </div>
 
@@ -253,7 +253,7 @@ export default function Room({ gameId, user }) {
                   <span className="feed-ms">{move.think_ms ? `${(move.think_ms / 1000).toFixed(1)}s` : ''}</span>
                 </div>
               ))}
-              {!game?.moves?.length && <p className="empty-note">还没落子。</p>}
+              {!game?.moves?.length && <p className="empty-note">暂无落子记录。</p>}
             </div>
           </div>
 
@@ -269,13 +269,13 @@ export default function Room({ gameId, user }) {
                   {msg.text}
                 </p>
               ))}
-              {chat.length === 0 && <p className="empty-note">还没有人说话。</p>}
+              {chat.length === 0 && <p className="empty-note">暂无对话。</p>}
             </div>
             <form className="chat-form" onSubmit={sendChat}>
               <input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value.slice(0, 200))}
-                placeholder="说点什么"
+                placeholder="输入消息"
               />
               <button type="submit" className="btn btn-small">
                 发送

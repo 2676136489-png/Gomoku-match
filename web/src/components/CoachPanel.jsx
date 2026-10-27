@@ -16,10 +16,10 @@ export default function CoachPanel({ coach, tactics, agent }) {
     <section className="panel coach">
       <div className="panel-head">
         <h2>教练</h2>
-        <span className="panel-note">按可验证的棋形事实给判断</span>
+        <span className="panel-note">基于可验证的棋形事实判断</span>
       </div>
 
-      {!coach && <p className="empty-note">落一手，这里会给出点评。</p>}
+      {!coach && <p className="empty-note">落子后显示点评。</p>}
 
       {coach && (
         <div className={`coach-card coach-${coach.grade}`}>
@@ -31,8 +31,8 @@ export default function CoachPanel({ coach, tactics, agent }) {
           </div>
           <p>{coach.detail}</p>
           <div className="coach-facts">
-            <span>你这一手：{coach.facts?.attack ?? '-'}</span>
-            <span>对手占此处：{coach.facts?.defence ?? '-'}</span>
+            <span>本手形成：{coach.facts?.attack ?? '-'}</span>
+            <span>对手在此：{coach.facts?.defence ?? '-'}</span>
             <span>对手威胁点：{coach.facts?.threats ?? 0}</span>
           </div>
         </div>
@@ -41,7 +41,7 @@ export default function CoachPanel({ coach, tactics, agent }) {
       {tactics && (
         <div className="coach-tactics">
           <div>
-            <span className="coach-label">你的活三以上</span>
+            <span className="coach-label">我方活三及以上</span>
             {tactics.my_threats?.length ? (
               <ul>
                 {tactics.my_threats.map((t) => (
@@ -51,11 +51,11 @@ export default function CoachPanel({ coach, tactics, agent }) {
                 ))}
               </ul>
             ) : (
-              <p className="dim">还没有</p>
+              <p className="dim">暂无</p>
             )}
           </div>
           <div>
-            <span className="coach-label">对手的活三以上</span>
+            <span className="coach-label">对手活三及以上</span>
             {tactics.opp_threats?.length ? (
               <ul>
                 {tactics.opp_threats.map((t) => (
@@ -65,7 +65,7 @@ export default function CoachPanel({ coach, tactics, agent }) {
                 ))}
               </ul>
             ) : (
-              <p className="dim">还没有</p>
+              <p className="dim">暂无</p>
             )}
           </div>
         </div>

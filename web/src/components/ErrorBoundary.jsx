@@ -35,22 +35,22 @@ export default class ErrorBoundary extends Component {
 
     return (
       <div className="crash">
-        <h2>这一步走岔了</h2>
+        <h2>页面渲染出错</h2>
         <p className="crash-msg">{String(this.state.error?.message || this.state.error)}</p>
         <p className="crash-note">
-          页面状态已经坏掉，重试会重新挂载这一页。棋局在服务端，重进不会丢。
+          当前页面状态已失效，重新加载会重新挂载该页面。对局数据保存在服务端，不会丢失。
         </p>
         <div className="actions">
           <button type="button" className="btn btn-primary" onClick={this.reset}>
-            重新加载这一页
+            重新加载
           </button>
           <button type="button" className="btn" onClick={() => window.location.reload()}>
-            刷新整站
+            刷新页面
           </button>
         </div>
         {this.state.info && (
           <details className="crash-detail">
-            <summary>组件栈</summary>
+            <summary>组件调用栈</summary>
             <pre>{this.state.info}</pre>
           </details>
         )}

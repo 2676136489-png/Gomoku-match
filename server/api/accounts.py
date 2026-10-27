@@ -122,7 +122,7 @@ def profile(name: str) -> dict:
     """公开主页：段位、排名、数据、最近棋谱。天梯点名字就跳这儿。"""
     user = repo.user_by_name(name)
     if user is None:
-        raise HTTPException(404, "没有这个账户")
+        raise HTTPException(404, "账户不存在")
     view = accounts.public(user["name"])
     view["rank"] = repo.rank_of(user["id"])
     view["tier"] = elo.tier(user["rating"])

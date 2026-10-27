@@ -6,8 +6,8 @@ const PAD = 6
  * 逐手胜率曲线。
  *
  * 和旧的局势曲线（直接画静态分）不同，这条线的纵轴是概率，
- * 中间那条虚线就是 50%——线在它上面就是你占优，不需要再看分数量级。
- * 最大的那段跳变会标出来，那是这盘棋的转折点。
+ * 中间那条虚线为 50%，曲线在其上方即表示人类方占优，无需再对照分数量级。
+ * 幅度最大的一次跳变会单独标出，作为该局的转折点。
  */
 export default function WinrateChart({ series, humanColor = 1, onPick }) {
   if (!series || series.length === 0) {
@@ -19,7 +19,7 @@ export default function WinrateChart({ series, humanColor = 1, onPick }) {
     )
   }
 
-  // 曲线统一按人类玩家视角画：黑棋胜率就是你的胜率，白棋要取反
+  // 曲线统一按人类玩家视角绘制：执黑时直接取黑棋胜率，执白时取反
   const toHuman = (black) => (humanColor === 2 ? 1 - black : black)
   const pts = series.map((row, i) => {
     const p = toHuman(row.black)

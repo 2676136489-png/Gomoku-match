@@ -40,8 +40,8 @@ SAMPLE_CPP_ARCHIVE = ROOT / "engine" / "bot.cpp"
 
 MAX_SOURCE = 200_000
 MAX_NODES = 6000
-# zig 第一次编 C++ 会顺手把 libc++ 源码编出来，冷缓存能吃掉半分钟以上；
-# 之后就只剩一两秒。上限给宽一点，别让「首次编译」被误判成卡死。
+# zig 首次编译 C++ 会连带编译 libc++ 源码，冷缓存下需要半分钟以上；
+# 此后降至一两秒。上限设置较宽，避免首次编译被误判为超时。
 MAX_CPP_BUILD_SECONDS = 90.0
 
 DENY_NAMES = {

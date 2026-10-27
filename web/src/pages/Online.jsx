@@ -97,7 +97,7 @@ export default function Online({ user }) {
       clock_inc: conf.inc,
     })
     if (!sent) {
-      setError('实时通道还没连上，稍等一下再点')
+      setError('实时通道未连通，请稍后重试')
       return
     }
     setQueueing(true)
@@ -132,7 +132,7 @@ export default function Online({ user }) {
   const joinByCode = async (value) => {
     const target = (value ?? code).trim().toUpperCase()
     if (target.length !== 6) {
-      setError('房间码是 6 位')
+      setError('房间码为 6 位，请检查后重新输入')
       return
     }
     setBusy(true)
@@ -164,7 +164,7 @@ export default function Online({ user }) {
       <section className="page-head">
         <div>
           <h2>在线对战</h2>
-          <p>服务端权威计时，超时判负。对局计入天梯，胜负都改分。</p>
+          <p>服务端权威计时，超时判负。对局计入天梯，胜负均影响等级分。</p>
         </div>
         <div className="online-me">
           <span className="pill pill-accent">{tier.label}</span>
@@ -201,7 +201,7 @@ export default function Online({ user }) {
         <div className="panel">
           <div className="panel-head">
             <h2>规则与时限</h2>
-            <span className="panel-note">匹配和开房共用这套设置</span>
+            <span className="panel-note">匹配与开房共用以下设置</span>
           </div>
 
           <div className="field">
@@ -247,7 +247,7 @@ export default function Online({ user }) {
                     <div>
                       <b>正在找对手</b>
                       <p>
-                        已等 {waitSeconds} 秒，窗口按等待时间逐步放宽（±150 → ±800 分）。
+                        已等待 {waitSeconds} 秒，匹配范围随等待时间放宽（±150 → ±800 分）。
                       </p>
                     </div>
                   </div>
@@ -261,16 +261,17 @@ export default function Online({ user }) {
                     开始匹配
                   </button>
                   <p className="hint-note">
-                    黑白由服务端随机分配。连珠规则下黑棋受禁手限制，随机分座是为了不让先手优势变成固定收益。
+                    黑白由服务端随机分配。连珠规则下黑棋受禁手限制，随机分座可避免先手优势被固定占用。
                   </p>
                 </>
               )}
               {matched && (
                 <p className="queue-matched">
-                  匹配成功：对手 {matched.players.white.name === user.name
+                  匹配成功，对手{' '}
+                  {matched.players.white.name === user.name
                     ? matched.players.black.name
                     : matched.players.white.name}
-                  ，正在进入棋盘…
+                  ，正在进入棋盘
                 </p>
               )}
             </div>
@@ -326,7 +327,7 @@ export default function Online({ user }) {
             <span className="panel-note">{rooms.length} 间</span>
           </div>
           {rooms.length === 0 ? (
-            <p className="empty-note">现在没有开放的房间。开一间，或者直接走快速匹配。</p>
+            <p className="empty-note">暂无可加入的房间。可创建新房间，或使用快速匹配。</p>
           ) : (
             <ul className="room-list">
               {rooms.map((room) => (
@@ -356,29 +357,29 @@ export default function Online({ user }) {
 
       <section className="panel online-how">
         <div className="panel-head">
-          <h2>这套对战是怎么跑的</h2>
+          <h2>对战机制</h2>
         </div>
         <ol className="how-list">
           <li>
             <b>服务端权威</b>
-            <span>落子请求走 WebSocket，轮次、禁手、胜负都在服务端判。客户端只负责发意图和画棋盘。</span>
+            <span>落子请求经 WebSocket 提交，轮次、禁手、胜负均由服务端判定。客户端只负责提交落子意图与渲染棋盘。</span>
           </li>
           <li>
             <b>计时不广播</b>
             <span>
-              每手落完只下发一次剩余秒数，前端本地倒计时；到点判罚用服务端时钟，两者不互相依赖。
+              每手落子后只下发一次剩余秒数，前端本地倒计时；超时判罚以服务端时钟为准。
             </span>
           </li>
           <li>
             <b>断线可续</b>
             <span>
-              连接断开后指数退避重连，重连即拉全量快照，不靠回放补消息。对方掉线时他的钟继续走。
+              连接断开后按指数退避重连，重连后拉取全量快照，不依赖消息补发。对手离线时其计时继续。
             </span>
           </li>
           <li>
             <b>每手落库</b>
             <span>
-              棋谱逐手写进 SQLite，进程重启后靠重放恢复局面；对局结束按 Elo 结算，涨跌对冲。
+              棋谱逐手写入 SQLite，进程重启后通过重放恢复局面；对局结束按 Elo 结算，双方涨跌互为相反数。
             </span>
           </li>
         </ol>

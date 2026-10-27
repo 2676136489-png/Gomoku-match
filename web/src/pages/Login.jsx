@@ -4,7 +4,7 @@ import { api } from '../lib/api'
 const HIGHLIGHTS = [
   ['国际连珠规则', '三三、四四、长连三种禁手，白棋无禁手的完整实现'],
   ['引擎 + Agent 分层', '搜索给候选，模型在候选里按风格取舍'],
-  ['代码实验室', '写自己的 AI，跟内置引擎逐手对弈，全程可回放'],
+  ['代码实验室', '自定义策略与内置引擎逐手对弈，全程可回放'],
   ['算法竞技场', '随机 / 贪心 / 极小化极大 / 神经网络 互相对打'],
 ]
 
@@ -21,7 +21,7 @@ export default function Login({ onAuth }) {
     if (busy) return
     setError('')
     if (mode === 'register' && password !== confirm) {
-      setError('两次输入的密码不一致')
+      setError('两次输入的密码不一致，请重新输入')
       return
     }
     setBusy(true)
@@ -114,7 +114,7 @@ export default function Login({ onAuth }) {
                 type="password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                placeholder="再输一次"
+                placeholder="再次输入密码"
                 autoComplete="new-password"
               />
             </label>
@@ -130,7 +130,7 @@ export default function Login({ onAuth }) {
         <p className="auth-switch">
           {mode === 'login' ? '还没有账户？' : '已经有账户？'}
           <button type="button" onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}>
-            {mode === 'login' ? '注册一个' : '直接登录'}
+            {mode === 'login' ? '立即注册' : '返回登录'}
           </button>
         </p>
       </section>

@@ -239,11 +239,11 @@ def apply_move(game, user: dict, x: int, y: int) -> dict:
     """
     seat = game.player_of(user["id"])
     if seat is None:
-        raise MoveRejected("你不在这一局里")
+        raise MoveRejected("无权访问该对局")
     if game.status != "playing":
         raise MoveRejected("对局已结束")
     if seat != game.turn:
-        raise MoveRejected("还没轮到你")
+        raise MoveRejected("未到你的回合")
     if not (0 <= x < SIZE and 0 <= y < SIZE):
         raise MoveRejected("坐标越界")
 
@@ -255,7 +255,7 @@ def apply_move(game, user: dict, x: int, y: int) -> dict:
     if ban:
         # 联网对局不做「判负」，直接拒绝并说明。规则里禁手判负是赛制，
         # 但这是休闲平台，让一个没学过连珠的人第 16 手突然输掉不合理。
-        raise MoveRejected(f"{rules.BAN_LABELS[ban]}：该点不能落子")
+        raise MoveRejected(f"{rules.BAN_LABELS[ban]}：该点不可落子")
 
     game.apply(idx, seat)
     return {"type": "state", "move": {"x": x, "y": y, "color": seat}, "reason": "move"}

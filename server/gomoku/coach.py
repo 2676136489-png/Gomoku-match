@@ -37,16 +37,16 @@ def analyze(pos: Position, idx: int, color: int) -> dict:
         return {
             "grade": "win",
             "title": f"这一手是{attack_label}",
-            "detail": "对手来不及了。活四两个成五点，连五更不用说。",
+            "detail": "对手无法同时防守。活四有两个成五点，连五则直接获胜。",
             "facts": {"attack": attack_label, "defence": defence_label, "threats": len(threats)},
         }
 
     if threat_here:
-        extra = "" if not threats or len(threats) == 1 else f"（对手当时有 {len(threats)} 个威胁点，你只处理了一个）"
+        extra = "" if not threats or len(threats) == 1 else f"（对手当时有 {len(threats)} 个威胁点，本次仅处理其中一个）"
         return {
             "grade": "good",
             "title": f"挡住了对手的{defence_label}",
-            "detail": f"这个点对手落下会形成{defence_label}，你占了它，威胁就消了。{extra}",
+            "detail": f"该点若被对手占据会形成{defence_label}，本手占位后威胁解除。{extra}",
             "facts": {"attack": attack_label, "defence": defence_label, "threats": len(threats)},
         }
 
@@ -54,9 +54,9 @@ def analyze(pos: Position, idx: int, color: int) -> dict:
         points = "、".join(f"({i % 15},{i // 15})" for i in threats[:3])
         return {
             "grade": "warn",
-            "title": "对手有活三没处理",
-            "detail": f"对手在 {points} 落下会形成活三以上，你这一手没碰这些点。"
-            f"除非你马上就要成四或成五，否则下一步会很被动。",
+            "title": "对手活三未处理",
+            "detail": f"对手在 {points} 落子会形成活三以上，本手未在该区域落子。"
+            f"除非下一手能形成四或五，否则将陷入被动。",
             "facts": {"attack": attack_label, "defence": defence_label, "threats": len(threats)},
         }
 
@@ -64,7 +64,7 @@ def analyze(pos: Position, idx: int, color: int) -> dict:
         return {
             "grade": "good",
             "title": f"主动做{attack_label}",
-            "detail": f"对手没有立即的活三威胁，这一手抢先做{attack_label}，把节奏拿回来了。",
+            "detail": f"对手无立即的活三威胁，本手抢先形成{attack_label}，转入主动。",
             "facts": {"attack": attack_label, "defence": defence_label, "threats": 0},
         }
 
@@ -80,15 +80,15 @@ def analyze(pos: Position, idx: int, color: int) -> dict:
         return {
             "grade": "neutral",
             "title": "布局手",
-            "detail": "这一手没有直接形成棋形，双方也都还没有活三级别以上的威胁。"
-            "布局阶段看的是方向和连接，别把子下散。",
+            "detail": "本手未直接形成棋形，双方也均无活三以上威胁。"
+            "布局阶段关注方向与连接，避免棋子分散。",
             "facts": {"attack": attack_label, "defence": defence_label, "threats": len(threats)},
         }
 
     return {
         "grade": "neutral",
         "title": f"这一手形成{attack_label}",
-        "detail": "双方都还没有活三级别以上的威胁，属于布局阶段。布局看的是往哪个方向铺，别把子下散。",
+        "detail": "双方均无活三以上威胁，属布局阶段。布局关注发展方向，避免棋子分散。",
         "facts": {"attack": attack_label, "defence": defence_label, "threats": 0},
     }
 
