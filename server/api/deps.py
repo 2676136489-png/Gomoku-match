@@ -9,11 +9,37 @@ from ..store import Game
 from ..runtime import accounts
 
 
+AUTH_COOKIE = "gomoku_token"
+
+
 def bearer(request: Request) -> str | None:
+    """取请求里的 token。
+
+    顺序是有讲究的：先 cookie / query / 自定义头，最后才是 `Authorization`。
+    原因不是标准问题，是云端分享网关的行为——它会给每个转发过来的请求**塞一个
+    自己的 `Authorization`**，把浏览器的同名字段覆盖掉。于是「优先读标准头」的
+    写法在线上永远读到网关的凭据，表现为登录成功的下一秒就掉回登录页
+    （/api/auth/me 判未登录）。
+
+    这个结论是量出来的，不是猜的：/api/health 的 auth_seen 显示，完全不带任何
+    鉴权信息发请求时 `header` 仍是 true，说明那个头不是客户端发的。
+
+    本地开发、测试、Docker 都只发 Authorization，前三条都不命中，行为不变。
+    """
+    cookie = request.cookies.get(AUTH_COOKIE)
+    if cookie:
+        return cookie
+    query = request.query_params.get("token")
+    if query:
+        return query
+    alt = request.headers.get("x-auth-token", "").strip()
+    if alt:
+        return alt
     header = request.headers.get("authorization", "")
     if header.lower().startswith("bearer "):
         token = header[7:].strip()
-        return token or None
+        if token:
+            return token
     return None
 
 

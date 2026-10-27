@@ -31,6 +31,9 @@ from pathlib import Path
 from typing import Any, Iterator
 
 ROOT = Path(__file__).resolve().parent.parent
+# 前端构建产物。目录名刻意不叫 dist：云端发布沙箱把 dist/build/out 当作构建输出
+# 从上传包里剔除，服务起来后只剩接口、没有页面（/api/ready 会报 frontend.ok=false）。
+WEB_DIST = ROOT / "web" / "site"
 DEFAULT_PATH = ROOT / "data" / "gomoku.db"
 
 _local = threading.local()

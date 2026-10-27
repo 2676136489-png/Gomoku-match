@@ -6,7 +6,9 @@
 
 `Python 3.13` · `FastAPI` · `SQLite (WAL)` · `WebSocket` · `React 19` · `Vite 7` · `Docker`
 
-**387 项自动化测试 + 76 项浏览器走查断言**
+**在线试用**：https://gomoku-match.app.workbuddy.host/?sharecode=MJAKMJUVAA
+
+**393 项自动化测试 + 76 项浏览器走查断言**
 
 | 在线对局 | 棋谱回放 |
 | --- | --- |
@@ -192,12 +194,12 @@ python tools/walk_analysis.py        # 分析页走查
 | `test_lab.py` | 代码沙箱、行协议、超时与越权 | 28 |
 | `test_insight.py` | 胜率、落点份额、解说、逐手分析 | 104 |
 | `test_storage.py` | 迁移、WAL、会话、棋谱重放、Elo、旧数据导入 | 94 |
-| `test_api.py` | 接口契约、鉴权、越权 403、限流与指标分桶 | 72 |
+| `test_api.py` | 接口契约、鉴权通道、越权 403、限流与指标分桶 | 78 |
 | `test_online.py` | 房间、双向落子、认输结算、匹配、天梯 | 52 |
 | `walk_online.py` | 两个浏览器完成一整局 | 26 |
 | `walk_analysis.py` | 准备页选项与吸底提交条、页签切换、待确认落子、逐手回看 | 50 |
 
-合计 **387 + 76**。
+合计 **393 + 76**。
 
 `tools/run_tests.py` 每次启动独立进程（临时库、随机端口、`NO_PROXY`），结束后清理——测试之间不共享状态，也不会污染 `data/gomoku.db`。
 
@@ -225,7 +227,7 @@ make docker            # 两阶段构建：node 编译前端，python 运行
 make docker-run        # docker compose up -d，数据挂载在 gomoku-data 卷
 ```
 
-镜像内不含 `node_modules` 与工具链：前端在 `node:22-alpine` 阶段编译为静态文件，运行镜像只复制 `dist/`。以 uid 10001 的非 root 用户运行，`/data` 单独建目录并 chown，挂载卷时权限才能对应。
+镜像内不含 `node_modules` 与工具链：前端在 `node:22-alpine` 阶段编译为静态文件，运行镜像只复制构建产物。以 uid 10001 的非 root 用户运行，`/data` 单独建目录并 chown，挂载卷时权限才能对应。
 
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
@@ -238,6 +240,16 @@ make docker-run        # docker compose up -d，数据挂载在 gomoku-data 卷
 单进程是刻意的设计：对局状态在内存中，多 worker 会让两个进程各持一半棋局。要横向扩展，需先把热态搬到共享存储，这是另一个量级的改造，不在当前取舍范围内。
 
 CI 矩阵：Python 3.11 与 3.13 × Node 22，执行 `compileall`、全部测试、`docker build`（不推送）。
+
+### 托管在 WorkBuddy 云平台
+
+线上跑在 WorkBuddy 的发布沙箱里，和 Docker 是两条独立路径。三个地方需要额外注意：
+
+- **启动命令要显式指定。** 平台的 Python 探测默认找 `main.py`，本项目的入口是 `serve.py`，不指定会以 `can't open file '/workspace/main.py'` 起不来。发布时传 `startCmd = python serve.py`。
+- **前端产物目录不能叫 `dist`。** 上传时 `dist/build/out` 被当作构建输出剔除，服务能起但只有接口没有页面；`/api/ready` 会明确报 `frontend.ok = false`。所以产物输出到 `web/site`，路径统一由 `server/db.py` 的 `WEB_DIST` 提供。
+- **鉴权 token 实际走 Cookie。** 分享网关会往每个请求塞一个自己的 `Authorization`，把浏览器发的覆盖掉，所以服务端按 cookie → query → 自定义头 → 标准头的顺序取 token。
+
+部署前先在本地 `npm run build`，`web/site` 存在才会被一起上传。
 
 ---
 
@@ -349,6 +361,14 @@ found.add(frozenset(i for i in four if i != gap))
 **指标标签基数存在风险。** 第一版按真实路径打标签，`/api/games/{id}` 每局一个新 id，时间序列只增不减。改为按路由模板打标签后才是闭集。
 
 **同一浏览器的两个标签共享 localStorage。** 双人对战走查最初全部失败：第二个标签登录后覆盖第一个标签的 token，第一个页面变为未登录状态。改为两个浏览器实例（两个 DevTools 端口、两份临时 profile）后才能覆盖真实场景。
+
+**前端产物放在 `dist/` 会被发布平台剔除。** 第一次上线时接口全部正常、`/api/health` 返回 200，但打开首页是应用自己的 404——`web/dist/index.html` 根本不在服务器上。发布沙箱把 `dist`、`build`、`out` 一律当构建输出排除。`/api/ready` 把这条暴露得很直接（`frontend.ok = false`，还带上了它找的路径），不然容易误判成路由问题。产物目录改成 `web/site`，路径收敛到 `db.WEB_DIST` 一处，`app.py` 与就绪探针都从它取。
+
+**分享网关会给每个请求塞一个 `Authorization`。** 更麻烦的一个：线上登录能成功，但下一个请求就掉回登录页，本地测试全绿。查下来推送 token 的四种通道里，标准头被网关用自己的凭据覆盖了——不是丢掉，是覆盖，所以看起来「有认证信息、但不是你的」。
+
+定位靠两个对照实验。一是 WebSocket 正常：浏览器不允许给 WS 设请求头，token 只能挂 query，它一直好使，说明服务端会话没问题、问题在传输。二是在 `/api/health` 里加了一段 `auth_seen`，只回报「哪个通道带了 token」，结果发现**完全不带鉴权信息发请求时 `header` 仍是 true**——那个头根本不是客户端发的。两个结论一凑，原因就只剩网关注入。
+
+修法是把优先级倒过来：cookie → query → 自定义头 → `Authorization`，前端登录时同步写一份 `SameSite=Lax` 的 cookie。测试里补了「cookie 优先于被网关覆盖的标准头」这条，防止谁哪天觉得顺序无关又调回去。
 
 ---
 

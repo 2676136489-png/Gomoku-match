@@ -5,7 +5,7 @@ PORT ?= 8000
 
 help:
 	@echo "install    安装依赖（Python + 前端）"
-	@echo "build      构建前端到 web/dist"
+	@echo "build      构建前端到 web/site"
 	@echo "serve      单端口启动（:$(PORT)）"
 	@echo "dev        起后端 + Vite 双端口开发"
 	@echo "test       跑全部测试（自带测试服务）"
@@ -44,4 +44,4 @@ docker-run:
 	docker compose up -d
 
 clean:
-	rm -rf web/dist web/node_modules __pycache__ server/__pycache__ server/api/__pycache__ server/gomoku/__pycache__ .tmp
+	rm -rf web/site web/node_modules __pycache__ server/__pycache__ server/api/__pycache__ server/gomoku/__pycache__ .tmp

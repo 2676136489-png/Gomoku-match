@@ -187,7 +187,14 @@ def _limit_bucket(path: str) -> str:
 
 def _identity(request: Request, scope: str) -> str:
     if scope == "user":
-        token = request.headers.get("authorization", "")
+        # 与 deps.bearer 保持同一优先级：云端分享网关会往每个请求里塞它自己的
+        # Authorization，标准头在线上不可信，cookie / query 才代表真实用户。
+        token = (
+            request.cookies.get("gomoku_token", "")
+            or request.query_params.get("token", "")
+            or request.headers.get("x-auth-token", "")
+            or request.headers.get("authorization", "")
+        )
         if token:
             # 只取 token 的后 8 位做键：完整 token 进内存字典没必要，
             # 而且日志/转储里出现完整凭据是明确的坏味道。

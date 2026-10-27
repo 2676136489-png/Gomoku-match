@@ -20,7 +20,10 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: path.join(root, 'dist'),
+    // 产物目录叫 site 而不是默认的 dist：云端发布沙箱会把 dist/build/out 当成
+    // 构建输出从上传包里剔除，导致服务起来了但没有页面。目录名与 server/db.py
+    // 的 WEB_DIST 必须一致。
+    outDir: path.join(root, 'site'),
     emptyOutDir: true,
   },
 })

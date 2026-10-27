@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -33,8 +32,7 @@ from .runtime import accounts as account_store
 from .runtime import store
 from .version import VERSION
 
-ROOT = Path(__file__).resolve().parent.parent
-DIST = ROOT / "web" / "dist"
+DIST = db.WEB_DIST
 
 log = logging.getLogger("gomoku.app")
 

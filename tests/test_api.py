@@ -92,6 +92,30 @@ def main() -> None:
     check("me 返回本人", r.json()["user"]["name"] == name)
     check("账户落盘", r.json()["persistent"] is True)
 
+    # 云端分享网关会给每个请求塞一个自己的 Authorization，把浏览器的覆盖掉，
+    # 所以应用还认 cookie / query / 自定义头，且优先级高于标准头。这几条守住它。
+    bare = new_client(timeout=90)
+    r = bare.get(f"/api/auth/me?token={token}")
+    check("query 传 token 也能鉴权", r.status_code == 200 and r.json()["user"]["name"] == name, str(r.status_code))
+    r = bare.get("/api/auth/me", cookies={"gomoku_token": token})
+    check("cookie 传 token 也能鉴权", r.status_code == 200 and r.json()["user"]["name"] == name, str(r.status_code))
+    r = bare.get("/api/auth/me", headers={"X-Auth-Token": token})
+    check("自定义头也能鉴权", r.status_code == 200 and r.json()["user"]["name"] == name, str(r.status_code))
+
+    # 应用通道优先于标准头：网关塞进来的那个 Authorization 不能盖掉真实身份
+    mixed = new_client(timeout=90)
+    r = mixed.get(
+        "/api/auth/me",
+        headers={"Authorization": "Bearer gateway-token"},
+        cookies={"gomoku_token": token},
+    )
+    check("cookie 优先于被网关覆盖的标准头", r.status_code == 200, str(r.status_code))
+
+    r = bare.get("/api/auth/me?token=bogus")
+    check("query 传错 token 仍然 401", r.status_code == 401, str(r.status_code))
+    r = bare.get("/api/auth/me")
+    check("不带 token 仍然 401", r.status_code == 401, str(r.status_code))
+
     # --- 元信息 ---
     cfg = client.get("/api/config").json()
     check("算法清单四项", len(cfg["algorithms"]) == 4, str([a["key"] for a in cfg["algorithms"]]))

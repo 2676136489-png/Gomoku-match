@@ -7,6 +7,8 @@ try {
   // 隐私模式下 localStorage 会抛异常，降级成内存态：能玩，关掉页面就要重登
   token = ''
 }
+// 老会话只有 localStorage 里的 token，这里补一次 cookie，免得升级后掉登录
+syncCookie(token)
 
 let unauthorizedHandler = null
 
@@ -21,6 +23,26 @@ export function setToken(next) {
     else localStorage.removeItem(TOKEN_KEY)
   } catch {
     /* 存不进去就只留内存态 */
+  }
+  syncCookie(token)
+}
+
+/**
+ * 同步一份 cookie。
+ *
+ * 云端的分享网关会把请求头整片摘掉，实测 Authorization、自定义头、查询串都到不了
+ * 应用，只有 Cookie 稳定穿过（它自己的分享会话就靠 Cookie）。所以除了请求头，再
+ * 存一份 cookie 兜底。SameSite=Lax：跨站发起的 XHR/POST 不会带上它，挡掉 CSRF。
+ */
+function syncCookie(value) {
+  try {
+    if (value) {
+      document.cookie = `gomoku_token=${encodeURIComponent(value)}; path=/; max-age=2592000; SameSite=Lax`
+    } else {
+      document.cookie = 'gomoku_token=; path=/; max-age=0; SameSite=Lax'
+    }
+  } catch {
+    /* cookie 不可用就只走请求头 */
   }
 }
 
@@ -39,10 +61,24 @@ async function readError(res) {
   return message
 }
 
+/**
+ * 把 token 拼进查询串。
+ *
+ * 云端的分享网关只放行它认识的那几个请求头，`Authorization` 和自定义头都会在
+ * 转发时被丢掉，于是「登录成功、下一个请求就掉回登录页」。WebSocket 因为浏览器
+ * 不允许设请求头、只能把 token 挂在 query 上，反而一直正常——这就是定位线索。
+ * 所以这里也走 query。服务端日志只记 path 不含查询串，token 不会落进日志。
+ */
+function withToken(path) {
+  if (!token) return path
+  const sep = path.includes('?') ? '&' : '?'
+  return `${path}${sep}token=${encodeURIComponent(token)}`
+}
+
 async function request(path, options = {}) {
   const headers = { ...(options.headers || {}) }
   if (token) headers.Authorization = `Bearer ${token}`
-  const res = await fetch(path, { ...options, headers })
+  const res = await fetch(withToken(path), { ...options, headers })
   if (res.status === 401) {
     setToken('')
     unauthorizedHandler?.()
@@ -65,7 +101,7 @@ const jsonPost = (path, payload) =>
  * 所以自己按 `data: {...}\n\n` 切帧——协议本身简单到不值得为它引库。
  */
 async function stream(path, payload, onEvent, signal) {
-  const res = await fetch(path, {
+  const res = await fetch(withToken(path), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload),

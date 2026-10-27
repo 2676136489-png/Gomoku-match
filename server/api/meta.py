@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Request, Response
 
 from .. import db, elo, lab, tutorial
 from ..gomoku import agent as agent_mod
@@ -14,14 +14,19 @@ from ..gomoku.position import SIZE
 from ..observability import metrics
 from ..runtime import accounts, store
 from ..version import VERSION
+from .deps import AUTH_COOKIE
 
 router = APIRouter(prefix="/api", tags=["meta"])
 STARTED = time.time()
 
 
 @router.get("/health")
-def health() -> dict:
-    """存活探针。不碰磁盘、不查表——它只会被 k8s 每十秒打一次。"""
+def health(request: Request) -> dict:
+    """存活探针。不碰磁盘、不查表——它只会被 k8s 每十秒打一次。
+
+    `auth_seen` 是部署排障用的：反向代理是否把凭据转发过来了，只有在这里才看得见。
+    它只回报「哪个通道带了 token」，不回报 token 本身。
+    """
     return {
         "status": "ok",
         "version": VERSION,
@@ -31,6 +36,17 @@ def health() -> dict:
         "persistent": accounts.persistent,
         "llm": LLMConfig().describe(),
         "languages": lab.capabilities()["languages"],
+        "auth_seen": _auth_seen(request),
+    }
+
+
+def _auth_seen(request: Request) -> dict[str, bool]:
+    header = request.headers.get("authorization", "")
+    return {
+        "header": header.lower().startswith("bearer ") and bool(header[7:].strip()),
+        "alt_header": bool(request.headers.get("x-auth-token", "").strip()),
+        "query": bool(request.query_params.get("token")),
+        "cookie": bool(request.cookies.get(AUTH_COOKIE)),
     }
 
 
@@ -52,7 +68,7 @@ def ready() -> Response:
         ok = False
         checks["database"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
-    dist = (db.ROOT / "web" / "dist" / "index.html")
+    dist = db.WEB_DIST / "index.html"
     checks["frontend"] = {"ok": dist.exists(), "path": str(dist)}
     ok = ok and dist.exists()
 

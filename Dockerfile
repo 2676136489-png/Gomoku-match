@@ -1,4 +1,4 @@
-# 两阶段构建：前端在 node 镜像里编译成静态文件，运行镜像里只留 Python 和 dist。
+# 两阶段构建：前端在 node 镜像里编译成静态文件，运行镜像里只留 Python 和构建产物。
 # 不这么做的话镜像里会多出 node_modules（几百 MB）和整个工具链。
 FROM node:22-alpine AS web
 
@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY server/ ./server/
 COPY serve.py ./
 COPY engine/ ./engine/
-COPY --from=web /build/dist ./web/dist/
+COPY --from=web /build/site ./web/site/
 
 # 非 root 跑起来。数据目录单独建，挂卷的时候权限才对得上。
 RUN useradd --create-home --uid 10001 gomoku \

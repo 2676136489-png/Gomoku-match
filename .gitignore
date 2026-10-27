@@ -6,7 +6,7 @@ __pycache__/
 
 # 前端
 node_modules/
-web/dist/
+web/site/
 
 # 本地
 .tmp/
@@ -21,3 +21,6 @@ data/
 # 编辑器
 .idea/
 .vscode/
+
+# 云平台发布的应用标记
+*.genie
