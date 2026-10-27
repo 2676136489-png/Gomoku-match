@@ -302,58 +302,17 @@
   color: var(--ink-4);
 }
 
+/* 四个主入口两列排：说明文字需要横向空间，七张等大卡片挤三列时每张只剩一行半。
+   两列之后不必再为「最后一张落单」做特殊处理。 */
 .hub-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
-/* 七个模块三列排下来，第三行只剩一张，右边空两格像漏了一页。
-   让它横跨整行当收尾的横条——编号 | 标题正文 | 入口 横向重排。 */
-.module-card:last-child:nth-child(odd) {
-  grid-column: span 2;
-}
-
-/* 横跨两列后正文会拉成一行超长句，卡片的说明文字仍按窄栏排 */
-.module-card:last-child:nth-child(odd) p {
-  max-width: 46ch;
-}
-
-@media (min-width: 1081px) {
-  .module-card:last-child:nth-child(odd) {
-    grid-column: span 3;
-    display: grid;
-    grid-template-columns: 46px minmax(0, 1fr) auto;
-    grid-template-areas:
-      "index head go"
-      "index text go";
-    column-gap: 4px;
-    row-gap: 5px;
-    align-items: start;
-  }
-
-  .module-card:last-child:nth-child(odd) .module-index {
-    grid-area: index;
-    padding-top: 3px;
-  }
-
-  .module-card:last-child:nth-child(odd) .module-head {
-    grid-area: head;
-    justify-content: flex-start;
-    gap: 12px;
-  }
-
-  .module-card:last-child:nth-child(odd) p {
-    grid-area: text;
-    max-width: 78ch;
-  }
-
-  .module-card:last-child:nth-child(odd) .module-go {
-    grid-area: go;
-    align-self: center;
-    margin-top: 0;
-    padding: 0 0 0 24px;
-    white-space: nowrap;
+@media (max-width: 900px) {
+  .hub-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -2509,30 +2468,38 @@
 /* 回放棋盘下面还压着控制条和进度条，开销比房间页小一点但要留够 */
 @media (min-width: 1081px) {
   .replay-grid {
-    --overhead: 336px;
+    --overhead: 360px;
     max-width: min(100%, calc(100vh - var(--overhead) + var(--side) + var(--gap)));
     margin-inline: auto;
   }
+}
+
+/* 控制条原本直接压在山水上，手数计数是 --ink-3，落在深色山体里几乎读不出来。
+   整条套一层纸底，和房间页的棋盘说明保持同一套做法。 */
+.replay-bar {
+  margin-top: 14px;
+  padding: 8px 14px 6px;
+  border: 1px solid var(--rule);
+  background: rgba(247, 248, 244, 0.9);
 }
 
 .replay-controls {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 14px;
 }
 
 .replay-count {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--ink-3);
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 
 .replay-scrub {
   width: 100%;
-  margin-top: 12px;
+  margin-top: 6px;
   accent-color: var(--seal);
 }
 
@@ -2638,3 +2605,638 @@
 .history li.is-link:hover {
   background: rgba(21, 24, 26, 0.025);
 }
+
+/* ==========================================================================
+   信息分层：导航分组 · 术语释义 · 首次引导 · 开局准备 · 对局页页签
+   --------------------------------------------------------------------------
+   这一层的目标不是好看，是让第一次打开的人知道自己在哪、下一步点哪。
+   凡是需要解释的东西，都放在离它最近的位置，不另开文档页。
+   ========================================================================== */
+
+/* --------------------------------------------------------------- 导航分组 */
+
+/* 七个入口加三个分组标签，默认宽度下会把「大厅」挤成竖排。
+   一律 nowrap + flex:none，装不下就整体换行，不允许单字折行。 */
+.nav {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  min-width: 0;
+}
+
+.nav-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.nav-group + .nav-group {
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid var(--rule-soft);
+}
+
+.nav-item,
+.nav-group-label {
+  flex: none;
+  white-space: nowrap;
+}
+
+.nav .nav-item {
+  padding: 7px 10px 9px;
+}
+
+.nav .nav-item::after {
+  left: 10px;
+  right: 10px;
+}
+
+.nav-group-label {
+  padding: 0 5px 0 1px;
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  color: var(--ink-5);
+}
+
+/* 宽度不够时先拿掉分组标签和副标题：按钮自己会说话，它们只是辅助 */
+@media (max-width: 1360px) {
+  .nav-group-label {
+    display: none;
+  }
+
+  .nav-group + .nav-group {
+    margin-left: 3px;
+    padding-left: 3px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .brand p {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------- 术语释义 */
+
+.term {
+  position: relative;
+  border-bottom: 1px dashed currentColor;
+  cursor: help;
+  white-space: nowrap;
+}
+
+.term::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 7px);
+  z-index: 60;
+  width: max-content;
+  max-width: 250px;
+  padding: 8px 10px;
+  border: 1px solid var(--ink-4);
+  border-radius: 2px;
+  background: var(--paper-hi);
+  box-shadow: 0 14px 26px -20px rgba(21, 24, 26, 0.95);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  color: var(--ink-1);
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(4px);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  pointer-events: none;
+}
+
+.term:hover::after,
+.term:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.term:focus-visible {
+  outline: 1px dashed var(--ink-4);
+  outline-offset: 2px;
+}
+
+/* 紧凑版：三步压成一行，用在对局页，不抢棋盘的位置 */
+.tip-card.is-compact {
+  padding: 9px 12px;
+}
+
+.tip-card.is-compact .tip-head {
+  align-items: center;
+  gap: 10px;
+}
+
+.tip-card.is-compact h2 {
+  flex: none;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.tip-inline {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.tip-inline > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.tip-inline b {
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --------------------------------------------------------------- 首次引导 */
+
+.tip-card {
+  padding: 14px 16px 13px;
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--seal);
+  background: rgba(247, 248, 244, 0.92);
+}
+
+.tip-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.tip-head h2 {
+  font-family: var(--font-kai);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--ink-1);
+}
+
+.tip-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 9px;
+  padding: 0;
+  list-style: none;
+}
+
+.tip-steps li {
+  display: flex;
+  gap: 9px;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+
+.tip-steps b {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --------------------------------------------------------------- 开局准备 */
+
+/* 整页当成一张纸：表单本身没有 panel，散在山水上时下半个页面的文字会读不清 */
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 26px 32px 22px;
+  border: 1px solid var(--rule);
+  background: rgba(247, 248, 244, 0.92);
+}
+
+@media (max-width: 760px) {
+  .setup {
+    padding: 20px 18px 18px;
+  }
+}
+
+.setup-head h2 {
+  font-family: var(--font-kai);
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+
+.setup-head p {
+  margin-top: 7px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--ink-3);
+}
+
+.setup-step {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+
+.setup-step-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.setup-step-head > b {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border: 1px solid var(--ink-4);
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.setup-step-head h3 {
+  font-family: var(--font-kai);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--ink-1);
+}
+
+.setup-step-head p {
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--ink-3);
+}
+
+.setup-step-head code {
+  padding: 1px 4px;
+  background: var(--paper-lo);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.setup-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 760px) {
+  .setup-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.setup-card {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 13px 14px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: rgba(247, 248, 244, 0.55);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.setup-card:hover {
+  border-color: var(--ink-4);
+  background: rgba(247, 248, 244, 0.9);
+}
+
+.setup-card.is-active {
+  border-color: var(--ink-2);
+  background: var(--paper-hi);
+  box-shadow: inset 2px 0 0 var(--seal);
+}
+
+.setup-card-title {
+  font-family: var(--font-kai);
+  font-size: 15.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink-1);
+}
+
+.setup-card-desc {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+.setup-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.setup-label {
+  flex: none;
+  width: 52px;
+  padding-top: 8px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+}
+
+.setup-more {
+  padding: 0 14px;
+  border: 1px solid var(--rule-soft);
+}
+
+.setup-more > summary {
+  padding: 11px 0;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.setup-more-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 13px;
+}
+
+/* 整张表单 1340px 高，「开始对局」落在 y≈1178，任何常见视口都要滚动才看得见。
+   一个只用来「选完开始」的页面，提交按钮不该藏在折叠线下面：钉在视口底部，
+   滚到页面末尾时回到自然位置。底色要压住滚过去的字段，否则文字会透上来。 */
+.setup-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 0 10px;
+  border-top: 1px solid var(--rule);
+  /* 吸底条与卡片同色时，滚过去的内容看起来像被生生切断。
+     底色提到接近不透明再叠一层向上的投影，让它读作浮在内容之上的一条操作栏。 */
+  background: rgba(247, 248, 244, 0.99);
+  box-shadow: 0 -1px 0 rgba(21, 24, 26, 0.06), 0 -16px 20px -18px rgba(21, 24, 26, 0.5);
+}
+
+.setup-summary {
+  font-family: var(--font-kai);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+}
+
+.setup-summary-label {
+  margin-right: 10px;
+  padding-right: 10px;
+  border-right: 1px solid var(--rule);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--ink-4);
+}
+
+.btn-lg {
+  padding: 11px 26px;
+  font-size: 14.5px;
+  letter-spacing: 0.1em;
+}
+
+/* --------------------------------------------------------------- 对局页 */
+
+.play-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* 对局页多了一条状态栏和提示条，714px 的默认棋盘宽度在 900 高的屏幕上
+   会把下沿顶出首屏。按视口高度反推上限，与房间页的处理方式一致。 */
+.play .board-frame {
+  width: min(100%, 660px, calc(100vh - 340px));
+}
+
+/* 说明与工具条压在山水的深色区域上，补纸底保证任何位置都能读 */
+.play .board-caption,
+.play .board-tools {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  background: rgba(247, 248, 244, 0.9);
+}
+
+.play .board-caption {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.play .board-tools {
+  border-top: 1px solid var(--rule);
+}
+
+.play-actions .btn {
+  padding: 6px 12px;
+}
+
+.info-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 12px;
+}
+
+/* 棋盘比信息区高，滚到下面时页签跟着吸顶，免得每次都要翻回顶部切换 */
+@media (min-width: 1081px) {
+  .info-column {
+    position: sticky;
+    top: 84px;
+    align-self: start;
+  }
+}
+
+.info-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--rule);
+}
+
+.info-tab {
+  position: relative;
+  flex: 1;
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 9px 4px 11px;
+  font-family: var(--font-kai);
+  font-size: 14.5px;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color 0.16s;
+}
+
+.info-tab:hover {
+  color: var(--ink-1);
+}
+
+.info-tab.is-active {
+  color: var(--ink);
+}
+
+.info-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--seal);
+}
+
+.info-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.panel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* 曲线自带表头，外面不再套 panel，只补一行怎么用 */
+.chart-block {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.chart-hint {
+  padding: 0 2px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+/* --------------------------------------------------------------- 大厅工具入口 */
+
+/* 工具入口直接压在山水背景上会读不清，给它一层纸底，和 panel 同一种处理 */
+.hub-links {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 18px 6px;
+  border: 1px solid var(--rule);
+  background: rgba(247, 248, 244, 0.9);
+}
+
+.hub-links-title {
+  margin-bottom: 4px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  color: var(--ink-4);
+}
+
+.hub-link {
+  appearance: none;
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) 18px;
+  align-items: baseline;
+  gap: 14px;
+  padding: 11px 2px;
+  border: 0;
+  border-top: 1px solid var(--rule-soft);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.hub-link:hover {
+  background: rgba(21, 24, 26, 0.02);
+}
+
+.hub-link:hover .hub-link-name {
+  color: var(--seal-deep);
+}
+
+.hub-link-name {
+  font-family: var(--font-kai);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: var(--ink-1);
+  transition: color 0.15s;
+}
+
+.hub-link-desc {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+.hub-link-go {
+  font-size: 13px;
+  color: var(--ink-4);
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .hub-link {
+    grid-template-columns: minmax(0, 1fr) 18px;
+    row-gap: 3px;
+  }
+
+  .hub-link-desc {
+    grid-column: 1 / -1;
+  }
+}
+

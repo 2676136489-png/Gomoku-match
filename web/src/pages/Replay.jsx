@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import AnalysisPanel from '../components/AnalysisPanel'
 import Board from '../components/Board'
+import ExplainCard from '../components/ExplainCard'
+import { Term } from '../components/Glossary'
+import WinrateChart from '../components/WinrateChart'
 import { api } from '../lib/api'
 import { navigate } from '../lib/router'
 
@@ -37,8 +41,11 @@ function Library() {
     <div className="replay-list">
       <section className="page-head">
         <div>
-          <h2>棋谱</h2>
-          <p>所有对局逐手入库，可逐手回放。人机、在线与双人对局均在此列。</p>
+          <h2>复盘分析</h2>
+          <p>
+            所有对局逐手入库。点进任意一局，可以拖进度条回看，也可以切到「分析」页签看
+            胜率变化、候选点与每一手的解说。人机、在线与双人对局均在此列。
+          </p>
         </div>
         <span className="pill pill-quiet">{rows.length} 局</span>
       </section>
@@ -103,6 +110,9 @@ function Player({ gameId }) {
   const [error, setError] = useState('')
   const [index, setIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
+  const [tab, setTab] = useState('moves')
+  const [insight, setInsight] = useState(null)
+  const [explain, setExplain] = useState(null)
   const timer = useRef(null)
 
   useEffect(() => {
@@ -113,6 +123,20 @@ function Player({ gameId }) {
         setIndex(res.game.moves.length - 1 < 0 ? -1 : 0)
       })
       .catch((e) => setError(e.message))
+  }, [gameId])
+
+  // 分析数据整局一次拿全，页签切换不再请求
+  useEffect(() => {
+    let alive = true
+    api
+      .insight(gameId)
+      .then((data) => {
+        if (alive) setInsight(data)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
   }, [gameId])
 
   const moves = game?.moves ?? []
@@ -163,6 +187,30 @@ function Player({ gameId }) {
     return () => clearInterval(timer.current)
   }, [playing, moves.length])
 
+  // 停在某一手时取这一手的解说。播放中不取，否则每 0.42 秒发一次请求。
+  useEffect(() => {
+    if (!game || playing || index < 0 || !moves.length) return undefined
+    let alive = true
+    api
+      .explain(gameId, index)
+      .then((res) => {
+        if (alive) setExplain(res.explain)
+      })
+      .catch(() => {
+        if (alive) setExplain(null)
+      })
+    return () => {
+      alive = false
+    }
+  }, [game, gameId, index, playing, moves.length])
+
+  // 曲线上点转折点：跳到那一手并切到分析页签
+  const jumpTo = useCallback((i) => {
+    setPlaying(false)
+    setIndex(i)
+    setTab('analysis')
+  }, [])
+
   if (error) {
     return (
       <div className="replay-player">
@@ -182,10 +230,10 @@ function Player({ gameId }) {
     <div className="replay-player">
       <section className="page-head">
         <div>
-          <h2>回放</h2>
+          <h2>复盘</h2>
           <p>
             {MODE_TEXT[game.mode] ?? game.mode} · {game.rule_label} · {moves.length} 手 ·{' '}
-            {game.status === 'finished' ? game.result_reason || '已结束' : game.status}
+            {game.status === 'finished' ? game.result_reason || '已结束' : '进行中'}
           </p>
         </div>
         <div className="actions">
@@ -208,71 +256,128 @@ function Player({ gameId }) {
             />
           </div>
 
-          <div className="replay-controls">
-            <button type="button" className="btn btn-small" onClick={() => setIndex(-1)}>
-              ⏮
-            </button>
-            <button type="button" className="btn btn-small" onClick={() => step(-1)}>
-              ◀
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary btn-small"
-              onClick={() => setPlaying((p) => !p)}
-            >
-              {playing ? '暂停' : '播放'}
-            </button>
-            <button type="button" className="btn btn-small" onClick={() => step(1)}>
-              ▶
-            </button>
-            <button
-              type="button"
-              className="btn btn-small"
-              onClick={() => setIndex(moves.length - 1)}
-            >
-              ⏭
-            </button>
-            <span className="replay-count">
-              {index + 1} / {moves.length}
-            </span>
-          </div>
+          <div className="replay-bar">
+            <div className="replay-controls">
+              <button type="button" className="btn btn-small" onClick={() => setIndex(-1)}>
+                ⏮
+              </button>
+              <button type="button" className="btn btn-small" onClick={() => step(-1)}>
+                ◀
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-small"
+                onClick={() => setPlaying((p) => !p)}
+              >
+                {playing ? '暂停' : '播放'}
+              </button>
+              <button type="button" className="btn btn-small" onClick={() => step(1)}>
+                ▶
+              </button>
+              <button
+                type="button"
+                className="btn btn-small"
+                onClick={() => setIndex(moves.length - 1)}
+              >
+                ⏭
+              </button>
+              <span className="replay-count">
+                {index + 1} / {moves.length}
+              </span>
+            </div>
 
-          <input
-            className="replay-scrub"
-            type="range"
-            min={-1}
-            max={moves.length - 1}
-            value={index}
-            onChange={(e) => setIndex(Number(e.target.value))}
-          />
+            <input
+              className="replay-scrub"
+              type="range"
+              min={-1}
+              max={moves.length - 1}
+              value={index}
+              onChange={(e) => setIndex(Number(e.target.value))}
+            />
+          </div>
         </div>
 
         <aside className="replay-side">
-          <div className="panel">
-            <div className="panel-head">
-              <h2>棋谱</h2>
-              <span className="panel-note">← → 翻手，空格播放</span>
-            </div>
-            <div className="game-feed">
-              {moves.map((move, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className={`game-row as-button ${i === index ? 'is-active' : ''}`}
-                  onClick={() => setIndex(i)}
-                >
-                  <span className="feed-idx">{i + 1}</span>
-                  <span className={`dot dot-${move.color === 1 ? 'black' : 'white'}`} />
-                  <span className="feed-pos">
-                    {String.fromCharCode(65 + move.x)}
-                    {15 - move.y}
-                  </span>
-                  <span className="feed-ms">{move.comment || ''}</span>
-                </button>
-              ))}
-              {moves.length === 0 && <p className="empty-note">本局没有落子记录。</p>}
-            </div>
+          <div className="info-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'moves'}
+              className={`info-tab ${tab === 'moves' ? 'is-active' : ''}`}
+              data-tab="moves"
+              onClick={() => setTab('moves')}
+            >
+              棋谱
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'analysis'}
+              className={`info-tab ${tab === 'analysis' ? 'is-active' : ''}`}
+              data-tab="analysis"
+              onClick={() => setTab('analysis')}
+            >
+              分析
+            </button>
           </div>
+
+          {tab === 'moves' && (
+            <div className="panel">
+              <div className="panel-head">
+                <h2>全部落子</h2>
+                <span className="panel-note">← → 翻手，空格播放</span>
+              </div>
+              <div className="game-feed">
+                {moves.map((move, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`game-row as-button ${i === index ? 'is-active' : ''}`}
+                    onClick={() => setIndex(i)}
+                  >
+                    <span className="feed-idx">{i + 1}</span>
+                    <span className={`dot dot-${move.color === 1 ? 'black' : 'white'}`} />
+                    <span className="feed-pos">
+                      {String.fromCharCode(65 + move.x)}
+                      {15 - move.y}
+                    </span>
+                    <span className="feed-ms">{move.comment || ''}</span>
+                  </button>
+                ))}
+                {moves.length === 0 && <p className="empty-note">本局没有落子记录。</p>}
+              </div>
+            </div>
+          )}
+
+          {tab === 'analysis' && (
+            <div className="panel-stack">
+              {insight?.series?.length ? (
+                <div className="chart-block">
+                  <WinrateChart
+                    series={insight.series}
+                    humanColor={game.human_color ?? 1}
+                    onPick={jumpTo}
+                  />
+                  <p className="chart-hint">
+                    纵轴是<Term k="winrate">胜率</Term>。点曲线上的转折点，跳到那一手。
+                  </p>
+                </div>
+              ) : (
+                <p className="empty-note">这局没有胜率数据。</p>
+              )}
+
+              <AnalysisPanel
+                insight={insight}
+                humanColor={game.human_color ?? 1}
+                onPickPoint={() => {}}
+                onPickPly={jumpTo}
+              />
+
+              {index >= 0 && (
+                <ExplainCard explain={explain} pending={false} busy={false} onResume={() => {}} />
+              )}
+            </div>
+          )}
         </aside>
       </div>
     </div>

@@ -9,19 +9,38 @@ import Landscape from './components/Landscape'
 import Login from './pages/Login'
 import Online from './pages/Online'
 import Play from './pages/Play'
+import PlaySetup from './pages/PlaySetup'
 import Replay from './pages/Replay'
 import Room from './pages/Room'
 import Tutorial from './pages/Tutorial'
 
+/**
+ * 导航按「你要干什么」分成三组，而不是把七个功能平铺一排。
+ * 按钮名压到 2–3 字，语境交给分组标签和悬浮说明——
+ * 一行放得下，才有分组的必要。
+ */
 const NAV = [
-  { path: '/hub', label: '大厅' },
-  { path: '/online', label: '在线' },
-  { path: '/play', label: '对弈' },
-  { path: '/learn', label: '学习' },
-  { path: '/tutorial', label: '教程' },
-  { path: '/code', label: '代码' },
-  { path: '/arena', label: '竞技场' },
-  { path: '/replay', label: '棋谱' },
+  {
+    group: '对弈',
+    items: [
+      { path: '/online', label: '在线', hint: '和真人下，结果计入天梯' },
+      { path: '/play', label: '人机', hint: '和引擎下，可选难度与风格' },
+    ],
+  },
+  {
+    group: '学习',
+    items: [
+      { path: '/replay', label: '复盘', hint: '逐手回看胜率与解说' },
+      { path: '/tutorial', label: '教程', hint: '从规则讲到禁手' },
+    ],
+  },
+  {
+    group: '实验室',
+    items: [
+      { path: '/code', label: '代码', hint: '写自己的 choose_move' },
+      { path: '/arena', label: '竞技场', hint: '四种算法互相对打' },
+    ],
+  },
 ]
 
 export default function App() {
@@ -86,17 +105,23 @@ export default function App() {
     )
   }
 
-  // 带参数的页面自己解析第二段：/room/abc123、/replay/abc123。
+  // 带参数的页面自己解析第二段：/room/abc123、/replay/abc123、/play/abc123。
   const segments = route.segments ?? []
   const root = `/${segments[0] ?? ''}`
   const param = segments[1]
   const path = root === '/' ? '/hub' : root
+  const modeParam = route.params?.get?.('mode') || 'agent'
+  const isActive = (target) => path === target || path.startsWith(`${target}/`)
 
   const render = () => {
     if (path === '/hub') return <Hub user={user} config={config} onNavigate={navigate} />
     if (path === '/online') return <Online user={user} />
-    if (path === '/play') return <Play key="play" mode="agent" config={config} onUserChange={refreshUser} />
-    if (path === '/learn') return <Play key="learn" mode="learn" config={config} onUserChange={refreshUser} />
+    if (path === '/play') {
+      if (param) return <Play key={param} gameId={param} onUserChange={refreshUser} />
+      return <PlaySetup key={`setup-${modeParam}`} config={config} initialMode={modeParam} />
+    }
+    // 旧链接 /learn 仍然可用，进的是准备页并预选学习模式
+    if (path === '/learn') return <PlaySetup key="setup-learn" config={config} initialMode="learn" />
     if (path === '/tutorial') return <Tutorial />
     if (path === '/code') return <Code config={config} />
     if (path === '/arena') return <Arena config={config} />
@@ -128,15 +153,28 @@ export default function App() {
           </div>
 
           <nav className="nav">
-            {NAV.map((item) => (
-              <button
-                key={item.path}
-                type="button"
-                className={`nav-item ${path === item.path ? 'is-active' : ''}`}
-                onClick={() => navigate(item.path)}
-              >
-                {item.label}
-              </button>
+            <button
+              type="button"
+              className={`nav-item ${path === '/hub' ? 'is-active' : ''}`}
+              onClick={() => navigate('/hub')}
+            >
+              大厅
+            </button>
+            {NAV.map((group) => (
+              <div className="nav-group" key={group.group}>
+                <span className="nav-group-label">{group.group}</span>
+                {group.items.map((item) => (
+                  <button
+                    key={item.path}
+                    type="button"
+                    className={`nav-item ${isActive(item.path) ? 'is-active' : ''}`}
+                    title={item.hint}
+                    onClick={() => navigate(item.path)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             ))}
           </nav>
 

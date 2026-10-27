@@ -1,55 +1,60 @@
 import { useEffect, useState } from 'react'
+import FirstRunTip from '../components/FirstRunTip'
+import { Term } from '../components/Glossary'
 import { api } from '../lib/api'
 
-const MODULES = [
+/**
+ * 大厅。
+ *
+ * 入口分两档：四张主卡是需要坐下来做的事（对局、学习、复盘），
+ * 下面三行是偶尔才用一次的工具。一眼能分出主次，比七张等大的卡片好选。
+ */
+const PRIMARY = [
   {
     path: '/online',
     index: '01',
     title: '在线对战',
     tag: '实时 · 计分',
-    desc: '与真人实时对局。服务端权威计时，断线可续，胜负均计入 Elo 等级分。',
+    desc: '和真人下。服务端权威计时，断线可续，结果计入天梯。',
   },
   {
     path: '/play',
     index: '02',
-    title: 'AI 对弈',
-    tag: '完整对局',
-    desc: '自主选择执黑或执白，与引擎完成整局。支持切换风格、调整强度、悔棋、提示与复盘。',
+    title: '人机对弈',
+    tag: '与引擎',
+    desc: '和引擎下。可选强度、风格与执子，对局中可悔棋、提示、复盘。',
   },
   {
-    path: '/learn',
+    path: '/play?mode=learn',
     index: '03',
     title: '学习模式',
     tag: '教练点评',
-    desc: '同样的对局，逐手标注棋形，说明该手形成什么、对手的活三是否已被拦截。',
-  },
-  {
-    path: '/tutorial',
-    index: '04',
-    title: '教程',
-    tag: '从零开始',
-    desc: '规则与胜负、棋形分级、三种禁手，以及引擎如何选点。每节配一副可交互棋盘。',
-  },
-  {
-    path: '/code',
-    index: '05',
-    title: '代码工坊',
-    tag: '自定义策略',
-    desc: '编写自己的 choose_move，或导入已有的 .py / .cpp 文件。落点、耗时与禁手判定全程可查。',
-  },
-  {
-    path: '/arena',
-    index: '06',
-    title: '算法竞技场',
-    tag: '对照实验',
-    desc: '随机、贪心、极小化极大、神经网络两两对打，从数据上区分棋力来自搜索还是评估。',
+    desc: '同样的对局，每一手都有评语：形成了什么棋形、对手的活三拦没拦住。',
   },
   {
     path: '/replay',
-    index: '07',
-    title: '棋谱',
-    tag: '逐手回放',
-    desc: '每局均入库。可逐手翻看、拖动进度条，查看当时的落点与耗时。',
+    index: '04',
+    title: '复盘分析',
+    tag: '逐手回看',
+    desc: '把下过的棋逐手翻出来看：胜率怎么变、关键手是什么、当时还有哪些选择。',
+  },
+]
+
+const SECONDARY = [
+  {
+    path: '/tutorial',
+    title: '新手教程',
+    desc: '从规则与胜负讲到三种禁手，每节配一副可交互棋盘。第一次接触连珠建议先看这里。',
+  },
+  {
+    path: '/code',
+    title: '代码工坊',
+    desc: '写自己的 choose_move 并跑起来，Python 与 C++ 两条通道，落点与耗时全程可查。',
+  },
+  {
+    path: '/arena',
+    title: '算法竞技场',
+    desc: '随机、贪心、极小化极大、神经网络两两对打，用数据区分棋力来自搜索还是评估。',
   },
 ]
 
@@ -115,8 +120,18 @@ export default function Hub({ user, config, onNavigate }) {
         </div>
       </section>
 
+      <FirstRunTip
+        id="hub"
+        title="第一次来，从这里开始"
+        steps={[
+          '想直接下棋就点「人机对弈」或「在线对战」，前者不用等人。',
+          '规则还没搞清楚就先看「新手教程」，四章带可交互棋盘。',
+          '每局结束后去「复盘分析」，能看到每一步的胜率变化和原因。',
+        ]}
+      />
+
       <section className="hub-grid">
-        {MODULES.map((m) => (
+        {PRIMARY.map((m) => (
           <button key={m.path} type="button" className="module-card" onClick={() => onNavigate(m.path)}>
             <span className="module-index">{m.index}</span>
             <div className="module-head">
@@ -129,11 +144,22 @@ export default function Hub({ user, config, onNavigate }) {
         ))}
       </section>
 
+      <section className="hub-links">
+        <h3 className="hub-links-title">工具</h3>
+        {SECONDARY.map((m) => (
+          <button key={m.path} type="button" className="hub-link" onClick={() => onNavigate(m.path)}>
+            <span className="hub-link-name">{m.title}</span>
+            <span className="hub-link-desc">{m.desc}</span>
+            <span className="hub-link-go">→</span>
+          </button>
+        ))}
+      </section>
+
       <section className="hub-lower">
         <div className="panel">
           <div className="panel-head">
             <h2>最近对局</h2>
-            <span className="panel-note">点击查看回放</span>
+            <span className="panel-note">点击进入复盘</span>
           </div>
           {history.length === 0 ? (
             <p className="empty-note">暂无已结束的对局。</p>
@@ -157,8 +183,12 @@ export default function Hub({ user, config, onNavigate }) {
 
         <div className="panel">
           <div className="panel-head">
-            <h2>天梯</h2>
-            <span className="panel-note">按等级分排序 · 仅统计计分对局</span>
+            <h2>
+              <Term k="elo" />天梯
+            </h2>
+            <span className="panel-note">
+              按等级分排序 · 仅<Term k="rated" />对局
+            </span>
           </div>
           {board.length === 0 ? (
             <p className="empty-note">暂无上榜玩家，完成首局计分对局后显示。</p>

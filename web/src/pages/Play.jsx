@@ -1,28 +1,33 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import AnalysisPanel from '../components/AnalysisPanel'
 import Board from '../components/Board'
 import CoachPanel from '../components/CoachPanel'
-import Controls from '../components/Controls'
 import ExplainCard from '../components/ExplainCard'
+import FirstRunTip from '../components/FirstRunTip'
+import { Term } from '../components/Glossary'
 import MoveFeed from '../components/MoveFeed'
-import RulesCard from '../components/RulesCard'
 import WinrateChart from '../components/WinrateChart'
 import { api } from '../lib/api'
+import { navigate } from '../lib/router'
 
-const DEFAULTS = {
-  difficulty: 3,
-  persona: 'balanced',
-  human_color: 1,
-  use_llm: true,
-  rule: 'renju',
-  strict_ban: false,
-  step: false,
-}
+/**
+ * 对局页。
+ *
+ * 一屏只做一件事：下棋。分析、棋谱、教练点评各自待在一个页签里，
+ * 默认停在「解说」，因为那是落子之后最想立刻看到的东西。
+ * 开局参数由 /play 准备页决定，这里不再提供任何设置项。
+ */
 
-export default function Play({ mode, config, onUserChange }) {
-  const [settings, setSettings] = useState({ ...DEFAULTS, mode })
+const TABS = [
+  { key: 'note', label: '解说' },
+  { key: 'analysis', label: '分析' },
+  { key: 'moves', label: '棋谱' },
+]
+
+export default function Play({ gameId, onUserChange }) {
   const [game, setGame] = useState(null)
   const [agent, setAgent] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [review, setReview] = useState('')
@@ -37,50 +42,44 @@ export default function Play({ mode, config, onUserChange }) {
   const [explainBusy, setExplainBusy] = useState(false)
   const [focus, setFocus] = useState(null)
   const [predictOn, setPredictOn] = useState(true)
+  const [tab, setTab] = useState('note')
   const settled = useRef('')
   const insightSeq = useRef(0)
 
-  const resetAnalysis = () => {
-    setInsight(null)
-    setExplain(null)
-    setPendingPreview(null)
-    setFocus(null)
-  }
-
-  const startGame = useCallback(
-    async (override) => {
-      const payload = override ?? settings
-      setBusy(true)
-      setError('')
-      setReview('')
-      setHintPoint(null)
-      setCoach(null)
-      setTactics(null)
-      setHeat(null)
-      resetAnalysis()
-      settled.current = ''
-      try {
-        const res = await api.newGame(payload)
-        setGame(res.game)
-        setAgent(res.agent)
-        if (res.explain) {
-          setExplain(res.explain)
-          setFocus({ x: res.explain.x, y: res.explain.y })
-        }
-      } catch (e) {
-        setError(e.message)
-      } finally {
-        setBusy(false)
-      }
-    },
-    [settings],
-  )
-
+  // 进页面先按 id 把局面拉回来。刷新、从复盘跳回、分享链接都走这条路径。
   useEffect(() => {
-    startGame({ ...DEFAULTS, mode })
-    // 只在挂载时开一局；之后由「开始新对局」驱动
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (!gameId) {
+      navigate('/play')
+      return
+    }
+    let alive = true
+    setLoading(true)
+    api
+      .replay(gameId)
+      .then(({ game: g }) => {
+        if (!alive) return
+        setGame(g)
+        if (g?.step && g.moves?.length && !g.pending) {
+          api
+            .explain(gameId)
+            .then((res) => {
+              if (!alive) return
+              setExplain(res.explain)
+              setFocus({ x: res.explain.x, y: res.explain.y })
+            })
+            .catch(() => {})
+        }
+      })
+      .catch((e) => {
+        if (alive) setError(e.message)
+      })
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [gameId])
 
   // 棋盘画在 canvas 上，DOM 里查不到棋子。挂一份快照出来，自动化验证不用靠截图猜。
   useEffect(() => {
@@ -244,6 +243,7 @@ export default function Play({ mode, config, onUserChange }) {
     try {
       const res = await api.review(game.id)
       setReview(res.review)
+      setTab('note')
     } catch (e) {
       setError(e.message)
     } finally {
@@ -260,6 +260,7 @@ export default function Play({ mode, config, onUserChange }) {
       const res = await api.explain(game.id, index)
       setExplain(res.explain)
       setFocus({ x: res.explain.x, y: res.explain.y })
+      setTab('note')
     } catch (e) {
       setError(e.message)
     } finally {
@@ -307,23 +308,55 @@ export default function Play({ mode, config, onUserChange }) {
   const explainData = game?.pending ? pendingPreview : explain
   const series = insight?.series ?? []
 
+  if (loading) {
+    return <p className="empty-note">正在读取对局…</p>
+  }
+
+  if (!game) {
+    return (
+      <div className="notfound">
+        <h2>对局不存在</h2>
+        <p>{error || '这个对局 id 没有对应的记录，可能已经被清理。'}</p>
+        <button type="button" className="btn btn-primary" onClick={() => navigate('/play')}>
+          回到开局准备
+        </button>
+      </div>
+    )
+  }
+
+  const oppoLabel =
+    game.mode === 'pvp'
+      ? '同屏轮流'
+      : `${game.difficulty_label} · ${game.persona_label}`
+
   return (
     <div className="play">
       <div className="play-bar">
         <div className="play-meta">
           <span className={`pill pill-${status.tone}`}>{status.text}</span>
-          {game && (
-            <>
-              <span className="pill pill-muted">{game.rule_label}</span>
-              <span className="pill pill-muted">
-                {game.mode === 'pvp' ? '双人对下' : `${game.difficulty_label} · ${game.persona_label}`}
-              </span>
-              {game.step && <span className="pill pill-accent">讲解模式</span>}
-              <span className="pill pill-muted">第 {game.moves.length} 手</span>
-            </>
-          )}
+          <span className="pill pill-muted">
+            {game.rule === 'renju' ? <Term k="renju">{game.rule_label}</Term> : game.rule_label}
+          </span>
+          <span className="pill pill-muted">{oppoLabel}</span>
+          {game.step && <span className="pill pill-accent">逐步确认</span>}
+          <span className="pill pill-muted">
+            第 {game.moves.length} <Term k="ply">手</Term>
+          </span>
         </div>
-        <span className="pill pill-muted">{config?.llm?.enabled ? config.llm.model : '内置策略人格'}</span>
+        <div className="play-actions">
+          <button type="button" className="btn btn-small" onClick={undo} disabled={busy || !game.moves.length}>
+            悔棋
+          </button>
+          <button type="button" className="btn btn-small" onClick={askHint} disabled={!canAct}>
+            提示
+          </button>
+          <button type="button" className="btn btn-small" onClick={askReview} disabled={busy}>
+            复盘
+          </button>
+          <button type="button" className="btn btn-small btn-primary" onClick={() => navigate('/play')}>
+            新对局
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -332,31 +365,28 @@ export default function Play({ mode, config, onUserChange }) {
         </div>
       )}
 
-      {review && (
-        <div className="banner banner-review">
-          <b>复盘</b>
-          <p>{review}</p>
-          <button type="button" className="banner-close" onClick={() => setReview('')}>
-            收起
-          </button>
-        </div>
-      )}
+      <FirstRunTip
+        id="game"
+        compact
+        title="这一页只有三件事"
+        steps={['点交叉点落子', '右侧页签：解说 / 分析 / 棋谱', '顶部：悔棋 / 提示 / 复盘']}
+      />
 
       <main className="layout">
         <section className="board-column">
           <div className="board-frame">
             <Board
               board={board}
-              lastMove={game?.last_move}
-              winLine={game?.win_line}
-              humanColor={game?.human_color ?? 1}
+              lastMove={game.last_move}
+              winLine={game.win_line}
+              humanColor={game.human_color ?? 1}
               interactive={canAct}
               onPlace={play}
               hintPoint={hintPoint}
-              banned={game?.banned}
+              banned={game.banned}
               heat={heat}
               predict={predictPoints}
-              ghost={game?.pending ? { x: game.pending.x, y: game.pending.y, color: game.pending.color } : null}
+              ghost={game.pending ? { x: game.pending.x, y: game.pending.y, color: game.pending.color } : null}
               focus={focus}
             />
             {busy && (
@@ -366,17 +396,18 @@ export default function Play({ mode, config, onUserChange }) {
               </div>
             )}
           </div>
+
           <div className="board-caption">
             <span>
-              {game?.status === 'finished'
+              {game.status === 'finished'
                 ? '对局结束'
-                : game?.pending
+                : game.pending
                   ? '已计算完成，等待确认'
-                  : game?.mode === 'pvp'
+                  : game.mode === 'pvp'
                     ? '黑白轮换，点击棋盘落子'
                     : '点击交叉点落子'}
             </span>
-            {game?.status === 'finished' && game.result_reason ? (
+            {game.status === 'finished' && game.result_reason ? (
               <span className={`result-note ${game.ban_loss ? 'is-ban' : ''}`}>{game.result_reason}</span>
             ) : hintPoint ? (
               <span className="hint-note">
@@ -391,7 +422,7 @@ export default function Play({ mode, config, onUserChange }) {
               className={`heat-toggle ${predictOn ? 'is-on' : ''}`}
               data-tool="predict"
               onClick={togglePredict}
-              disabled={!game || game.status !== 'playing'}
+              disabled={game.status !== 'playing'}
             >
               {predictOn ? '收起落点预测' : '落点预测'}
             </button>
@@ -400,14 +431,14 @@ export default function Play({ mode, config, onUserChange }) {
               className={`heat-toggle ${heat ? 'is-on' : ''}`}
               data-tool="heat"
               onClick={toggleHeat}
-              disabled={heatBusy || !game}
+              disabled={heatBusy}
             >
               {heatBusy ? '扫描中…' : heat ? '收起网络视角' : '网络视角'}
             </button>
 
             {predictOn && predictTop.length > 0 && (
               <span className="heat-legend" data-legend="predict">
-                {insight?.prediction?.side === game?.human_color ? '你的可能落点：' : '对手可能落点：'}
+                {insight?.prediction?.side === game.human_color ? '你的可能落点：' : '对手可能落点：'}
                 {predictTop.map((p) => (
                   <b key={`${p.x}-${p.y}`} title={p.why}>
                     {p.x},{p.y}
@@ -428,45 +459,77 @@ export default function Play({ mode, config, onUserChange }) {
               </span>
             )}
           </div>
-
-          <WinrateChart series={series} humanColor={game?.human_color ?? 1} onPick={explainPly} />
-
-          <div className="analysis-grid">
-            <AnalysisPanel
-              insight={insight}
-              humanColor={game?.human_color ?? 1}
-              onPickPoint={(pt) => {
-                setFocus({ x: pt.x, y: pt.y })
-                setPredictOn(true)
-              }}
-              onPickPly={explainPly}
-            />
-            <ExplainCard
-              explain={explainData}
-              pending={Boolean(game?.pending)}
-              busy={busy}
-              onResume={resume}
-              onClose={explainData ? () => setExplain(null) : undefined}
-            />
-          </div>
-
-          <RulesCard game={game} />
         </section>
 
-        <aside className="side-column">
-          {learning && <CoachPanel coach={coach} tactics={tactics} agent={agent} />}
-          <Controls
-            config={config}
-            settings={settings}
-            onChange={setSettings}
-            onNew={() => startGame()}
-            onUndo={undo}
-            onHint={askHint}
-            onReview={askReview}
-            busy={busy}
-            canAct={canAct}
-          />
-          <MoveFeed moves={game?.moves} agent={agent} onPick={explainPly} activeIndex={explain?.index} />
+        <aside className="info-column">
+          <div className="info-tabs" role="tablist">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.key}
+                className={`info-tab ${tab === t.key ? 'is-active' : ''}`}
+                data-tab={t.key}
+                onClick={() => setTab(t.key)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="info-body" data-panel={tab}>
+            {tab === 'note' && (
+              <>
+                {review && (
+                  <div className="banner banner-review">
+                    <b>复盘</b>
+                    <p>{review}</p>
+                    <button type="button" className="banner-close" onClick={() => setReview('')}>
+                      收起
+                    </button>
+                  </div>
+                )}
+                {learning && <CoachPanel coach={coach} tactics={tactics} agent={agent} />}
+                <ExplainCard
+                  explain={explainData}
+                  pending={Boolean(game.pending)}
+                  busy={busy}
+                  onResume={resume}
+                  onClose={explainData && !game.pending ? () => setExplain(null) : undefined}
+                />
+              </>
+            )}
+
+            {tab === 'analysis' && (
+              <div className="panel-stack">
+                <div className="chart-block">
+                  <WinrateChart series={series} humanColor={game.human_color ?? 1} onPick={explainPly} />
+                  <p className="chart-hint">
+                    纵轴是<Term k="winrate">胜率</Term>。点曲线上的转折点，跳到那一手。
+                  </p>
+                </div>
+                <AnalysisPanel
+                  insight={insight}
+                  humanColor={game.human_color ?? 1}
+                  onPickPoint={(pt) => {
+                    setFocus({ x: pt.x, y: pt.y })
+                    setPredictOn(true)
+                  }}
+                  onPickPly={explainPly}
+                />
+              </div>
+            )}
+
+            {tab === 'moves' && (
+              <MoveFeed
+                moves={game.moves}
+                agent={agent}
+                onPick={explainPly}
+                activeIndex={explain?.index}
+              />
+            )}
+          </div>
         </aside>
       </main>
     </div>

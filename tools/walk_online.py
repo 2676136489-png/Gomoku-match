@@ -280,14 +280,16 @@ def main() -> None:
     time.sleep(0.5)
     page_d.shot(str(SHOTS / "25-replay.png"))
 
-    # 大厅首屏（带段位条与七张卡）
+    # 大厅首屏（带段位条、四张主卡与三条工具入口）
     page_e = open_page(CDP_A)
     login(page_e, ta, "/hub")
     time.sleep(1.2)
     check("大厅有段位进度条", page_e.eval("!!document.querySelector('.rank-track')"))
-    check("模块卡是七张", page_e.eval("document.querySelectorAll('.module-card').length") == 7,
-          str(page_e.eval("document.querySelectorAll('.module-card').length")))
-    page_e.shot(str(SHOTS / "26-hub-v4.png"))
+    cards = page_e.eval("document.querySelectorAll('.module-card').length")
+    check("主入口是四张", cards == 4, str(cards))
+    links = page_e.eval("document.querySelectorAll('.hub-link').length")
+    check("工具入口是三条", links == 3, str(links))
+    page_e.shot(str(SHOTS / "26-hub.png"))
 
     for page in (page_a, page_b, page_c, page_d, page_e):
         page.close()
