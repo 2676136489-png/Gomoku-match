@@ -54,7 +54,7 @@ def alive(base: str = BASE) -> bool:
 def ensure_browser(base: str = BASE, width: int = 1440, height: int = 1080):
     """CDP 端点没起来就自己拉一个无头浏览器。
 
-    走查脚本原先要求人手开两个浏览器，忘了开就是一堆 WinError 10061。
+    走查脚本原先依赖手工启动两个浏览器，未启动时报告大量 WinError 10061。
     这里按端口推导一个独立的临时 profile——两个账号必须落在两个浏览器里，
     否则同一个 localStorage 会互相顶掉 token。
     """

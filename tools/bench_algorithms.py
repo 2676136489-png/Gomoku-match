@@ -30,7 +30,7 @@ def one_game(
     moves = 0
 
     # 两路算法都没有随机性，同一局面永远给出同一手。不加随机开局的话，
-    # 「打 8 局」其实是同一个对局重复 4 遍——统计出来的胜率没有意义。
+    # 「打 8 局」实际是同一对局重复 4 遍，统计出的胜率不具参考性。
     if open_seed is not None:
         rng = random.Random(open_seed)
         first = rng.choice([(7, 7), (7, 8), (8, 7), (6, 7), (7, 6), (8, 8)])

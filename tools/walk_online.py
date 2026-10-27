@@ -35,20 +35,35 @@ CDP_B = os.environ.get("CDP_BASE_B", "http://127.0.0.1:9223")
 # 截图尺寸固定成 1440×900，谁在跑、浏览器窗口多大都不影响
 VIEW = (1440, 900)
 SHOTS = ROOT / "docs" / "walk"
+# 走查用一次性库，不碰 data/gomoku.db
+WALK_DB = ROOT / ".tmp" / "walk-online.db"
+# 截图里出现的名字，用正常昵称而不是 walkA12345
+NICKNAMES = ("听雨", "松风", "竹影", "青崖", "石泉", "晚舟", "寒江", "暮云", "空山", "归鹤")
 PASS = 0
 FAIL = 0
 
 
-def ensure_server():
+def ensure_server(db_path=None):
     """8000 上没服务就自己拉一个，跑完关掉。
 
-    走查要连真服务，但把服务挂在外面很容易中途被回收，脚本就砸在一堆连接拒绝上。
+    走查要连真实服务，但把服务挂在外部容易中途被回收，脚本会因大量连接被拒绝而中断。
+
+    传入 db_path 时使用独立的一次性库：走查会注册账号、下棋、改天梯分，
+    跑在开发库上会写入大量 walkA12345 形式的测试账号，并出现在截图里。
     """
     if healthy():
         return None
+    env = dict(os.environ)
+    if db_path:
+        path = Path(db_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        for suffix in ("", "-wal", "-shm"):
+            Path(str(path) + suffix).unlink(missing_ok=True)
+        env["GOMOKU_DB"] = str(path)
     proc = subprocess.Popen(
         [sys.executable, str(ROOT / "serve.py")],
         cwd=str(ROOT),
+        env=env,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -78,6 +93,19 @@ def check(name: str, ok: bool, extra: str = "") -> None:
     else:
         FAIL += 1
         print(f"[FAIL] {name} {extra}")
+
+
+def new_account(client) -> tuple[str, str]:
+    """注册一个账号，返回（昵称, token）。
+
+    昵称从固定池里取，重复了就换一个——截图里出现"听雨""松风"比出现
+    "walkA48213" 更像真实产品。
+    """
+    for name in NICKNAMES:
+        r = client.post("/api/auth/register", json={"name": name, "password": "gomoku-2026"})
+        if r.status_code < 400:
+            return name, r.json()["token"]
+    raise RuntimeError("昵称池已用尽，清理 .tmp/walk-online.db 后重跑")
 
 
 def api(token: str | None = None) -> httpx.Client:
@@ -150,16 +178,12 @@ def login(page: Page, token: str, path: str) -> None:
 def main() -> None:
     SHOTS.mkdir(parents=True, exist_ok=True)
     # 服务与浏览器都由脚本自己管：两个账号要落在两个浏览器里（DevTools 两个端口）
-    server = ensure_server()
+    server = ensure_server(WALK_DB)
     spawned = [p for p in (ensure_browser(CDP_A), ensure_browser(CDP_B)) if p]
-    stamp = int(time.time()) % 100000
-    alice = f"walkA{stamp}"
-    bob = f"walkB{stamp}"
 
     with api() as c:
-        pa = c.post("/api/auth/register", json={"name": alice, "password": "gomoku-2026"}).json()
-        pb = c.post("/api/auth/register", json={"name": bob, "password": "gomoku-2026"}).json()
-    ta, tb = pa["token"], pb["token"]
+        alice, ta = new_account(c)
+        bob, tb = new_account(c)
 
     with api(ta) as c:
         room = c.post(
@@ -272,6 +296,9 @@ def main() -> None:
         proc.terminate()
     if server:
         server.terminate()
+        server.wait(timeout=10)
+        for suffix in ("", "-wal", "-shm"):
+            Path(str(WALK_DB) + suffix).unlink(missing_ok=True)
 
     print("\n" + "=" * 46)
     print(f"通过 {PASS} 项，失败 {FAIL} 项")

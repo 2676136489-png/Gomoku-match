@@ -60,7 +60,7 @@ def click_board(p, x: float, y: float) -> None:
 
 
 def main() -> int:
-    srv = ensure_server()
+    srv = ensure_server(SHOTS.parent.parent / ".tmp" / "walk-analysis.db")
     ensure_browser()
     name = "walk" + "".join(random.choices(string.ascii_lowercase, k=6))
     token = post("/api/auth/register", {"name": name, "password": "Walk12345"})["token"]
@@ -146,16 +146,16 @@ def main() -> int:
     check("待确认的一手没上盘", bool(state) and state["moves"] == 2, str(state))
 
     head = p.eval("(() => { const el = document.querySelector('.panel-explain .panel-head h2'); return el ? el.textContent : ''; })()")
-    check("解说卡切成「它打算这么走」", "它打算这么走" in head, head)
+    check("解说卡切到待确认态", "预计算落子" in head, head)
 
     resume = p.eval("(() => { const b = document.querySelector('.ex-resume'); return b ? b.textContent : ''; })()")
-    check("有确认落子的按钮", "继续" in resume, resume)
+    check("有确认落子的按钮", "确认" in resume, resume)
 
     narrative = p.eval("(() => { const el = document.querySelector('.ex-narrative'); return el ? el.textContent : ''; })()")
     check("待确认的一手有解说文字", len(narrative) > 20, narrative[:60])
 
     status = p.eval("(() => { const el = document.querySelector('.pill-wait'); return el ? el.textContent : ''; })()")
-    check("状态栏提示等你看完", "等你看完" in status, status)
+    check("状态栏提示等待确认", "等待确认" in status, status)
 
     p.shot(str(SHOTS / "14-step-pending.png"))
     print(f"  截图 {SHOTS / '14-step-pending.png'}")
