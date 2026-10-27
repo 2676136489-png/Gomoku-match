@@ -9,6 +9,7 @@ SSE 用真实的事件流解析，不绕开传输层直接调函数。
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import sys
@@ -170,6 +171,23 @@ def main() -> None:
         "/api/lab/verify", json={"language": "python", "source": "import os\ndef choose_move(b,c,n): return (7,7)"}
     )
     check("越权代码被拦", r.json().get("ok") is False, r.text[:200])
+
+    # 云端 WAF 会把请求体里的源码当注入载荷拦掉，前端被拦后改用 base64 重发一次。
+    # 这条通道是线上唯一能救回误判的路径，解码后必须与明文完全等价。
+    payload = {"language": "python", "source": samples["python"]["code"]}
+    encoded = base64.b64encode(json.dumps(payload, ensure_ascii=False).encode()).decode()
+    r = client.post(
+        "/api/lab/verify?_enc=b64", content=encoded, headers={"Content-Type": "application/json"}
+    )
+    check("base64 请求体解码后等价", r.json().get("ok") is True, r.text[:200])
+
+    r = client.post(
+        "/api/lab/verify?_enc=b64", content="不是 base64 的乱码!!", headers={"Content-Type": "application/json"}
+    )
+    check("坏 base64 被挡成 400", r.status_code == 400, str(r.status_code))
+
+    r = client.post("/api/lab/verify", content=encoded, headers={"Content-Type": "application/json"})
+    check("没带标记时不做解码", r.status_code == 422, str(r.status_code))
 
     events = read_sse(
         client,

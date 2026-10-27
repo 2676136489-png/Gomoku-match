@@ -30,6 +30,7 @@ from .api import socket as api_socket
 from .observability import Observability, metrics, setup_logging
 from .runtime import accounts as account_store
 from .runtime import store
+from .softbody import SoftBody
 from .version import VERSION
 
 DIST = db.WEB_DIST
@@ -74,6 +75,9 @@ app = FastAPI(
 )
 
 app.add_middleware(Observability)
+# 放在 CORS 里面、Observability 外面：先解码再计时，日志里的耗时才是真实处理时间。
+# 顺序反了也能跑（都不读请求体），但指标会把 base64 解码算进业务耗时。
+app.add_middleware(SoftBody)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins(),

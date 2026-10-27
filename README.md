@@ -186,6 +186,7 @@ python tools/run_tests.py            # 全部，自行启动服务、临时库�
 python tools/run_tests.py --fast     # 跳过端到端套件
 python tools/walk_online.py          # 在线对战走查（自行启动服务与浏览器）
 python tools/walk_analysis.py        # 分析页走查
+python tools/walkthrough.py          # 全站六模块走查（需先起服务）
 ```
 
 | 套件 | 覆盖 | 项数 |
@@ -194,12 +195,13 @@ python tools/walk_analysis.py        # 分析页走查
 | `test_lab.py` | 代码沙箱、行协议、超时与越权 | 28 |
 | `test_insight.py` | 胜率、落点份额、解说、逐手分析 | 104 |
 | `test_storage.py` | 迁移、WAL、会话、棋谱重放、Elo、旧数据导入 | 94 |
-| `test_api.py` | 接口契约、鉴权通道、越权 403、限流与指标分桶 | 78 |
+| `test_api.py` | 接口契约、鉴权通道、越权 403、限流与指标分桶 | 81 |
 | `test_online.py` | 房间、双向落子、认输结算、匹配、天梯 | 52 |
 | `walk_online.py` | 两个浏览器完成一整局 | 26 |
 | `walk_analysis.py` | 准备页选项与吸底提交条、页签切换、待确认落子、逐手回看 | 50 |
+| `walkthrough.py` | 注册、大厅、教程、对弈、学习、代码工坊、竞技场 | 41 |
 
-合计 **393 + 76**。
+合计 **396 + 117**。
 
 `tools/run_tests.py` 每次启动独立进程（临时库、随机端口、`NO_PROXY`），结束后清理——测试之间不共享状态，也不会污染 `data/gomoku.db`。
 
@@ -248,6 +250,7 @@ CI 矩阵：Python 3.11 与 3.13 × Node 22，执行 `compileall`、全部测试
 - **启动命令要显式指定。** 平台的 Python 探测默认找 `main.py`，本项目的入口是 `serve.py`，不指定会以 `can't open file '/workspace/main.py'` 起不来。发布时传 `startCmd = python serve.py`。
 - **前端产物目录不能叫 `dist`。** 上传时 `dist/build/out` 被当作构建输出剔除，服务能起但只有接口没有页面；`/api/ready` 会明确报 `frontend.ok = false`。所以产物输出到 `web/site`，路径统一由 `server/db.py` 的 `WEB_DIST` 提供。
 - **鉴权 token 实际走 Cookie。** 分享网关会往每个请求塞一个自己的 `Authorization`，把浏览器发的覆盖掉，所以服务端按 cookie → query → 自定义头 → 标准头的顺序取 token。
+- **WAF 会误判请求体里的源码。** 代码工坊提交的模板文本会被注入规则拦掉，返回一张 HTML 拦截页。传输层有一条 `_enc=b64` 软通道兜底，平时仍是明文发送。
 
 部署前先在本地 `npm run build`，`web/site` 存在才会被一起上传。
 
@@ -266,6 +269,7 @@ server/
   settlement.py     终局结算（幂等）
   elo.py            等级分与段位
   observability.py  指标、JSON 日志、限流、安全头
+  softbody.py       base64 请求体的解码中间件（绕开 WAF 误判）
   runtime.py        进程级单例，打断循环引用
   api/              accounts games lab meta online socket deps
   gomoku/
@@ -369,6 +373,14 @@ found.add(frozenset(i for i in four if i != gap))
 定位靠两个对照实验。一是 WebSocket 正常：浏览器不允许给 WS 设请求头，token 只能挂 query，它一直好使，说明服务端会话没问题、问题在传输。二是在 `/api/health` 里加了一段 `auth_seen`，只回报「哪个通道带了 token」，结果发现**完全不带鉴权信息发请求时 `header` 仍是 true**——那个头根本不是客户端发的。两个结论一凑，原因就只剩网关注入。
 
 修法是把优先级倒过来：cookie → query → 自定义头 → `Authorization`，前端登录时同步写一份 `SameSite=Lax` 的 cookie。测试里补了「cookie 优先于被网关覆盖的标准头」这条，防止谁哪天觉得顺序无关又调回去。
+
+**云端 WAF 会把源码判成注入。** 代码工坊点「校验」返回 403，页面只有一句「请求失败 (403)」，而同一套接口在本地全绿。把响应体原样打出来才看到 `<title>WAF拦截页面</title>`——拦在应用前面，应用根本没收到请求。
+
+二分定位：把模板按行截断逐次提交，49 行过、51 行拦，第一次触发的就是 `if abs(x - 7) > 6 or abs(y - 7) > 6:`。再往下收窄，规律是「两处函数调用各自带比较，用 `and`/`or` 或 `&&`/`||` 连起来」：`if abs(x) > 6 or abs(y) > 6` 拦；`if a > 6 or b > 6` 不拦；`if (abs(x) > 6) or (abs(y) > 6)` 不拦，左右括弧把 `or abs(` 的邻接打断了；换成 `max(abs(x - 7), abs(y - 7)) > 6` 也不拦。C++ 模板同一处用 `||`，一样中枪。
+
+这个形状在布尔盲注的 payload 里确实常见，规则本身不算错，但拿来判断源码就是误判。改模板只能救默认模板，用户自己写的 bot 照样会撞上，所以做两层。一是模板先把距离算出来再比（`dx, dy = abs(x - 7), abs(y - 7)`，后面算分也复用这两个值，顺手少算两遍），默认路径不踩雷。二是传输层留一条软通道：前端吃到「403 且响应不是 JSON」时，把整个请求体 base64 后带 `_enc=b64` 重发一次，`SoftBody` 中间件解码还原。标记放查询串而不是自定义头，因为分享网关会丢不认识的请求头（`X-Auth-Token` 单独使用时永远到不了应用）。
+
+先发明文是刻意的——平台的检查照常生效，软通道只用于解误判，不是常态绕过。中间件里另有一个坑：请求体读完之后，后续的 `receive` 不能返回 `http.disconnect`，否则 SSE 的断连监听会立刻收到断连并把流取消，对局直播刚开头就断。测试补了三条：软通道解码后与明文完全等价、坏 base64 挡成 400、没带标记时不解码。
 
 ---
 

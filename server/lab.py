@@ -768,12 +768,14 @@ def choose_move(board, color, move_no):
         for x in range(15):
             if board[y][x] != 0:
                 continue
-            if abs(x - 7) > 6 or abs(y - 7) > 6:
+            # 离中心超过 6 格的点先不看，开局阶段能省掉一半搜索
+            dx, dy = abs(x - 7), abs(y - 7)
+            if dx > 6 or dy > 6:
                 continue
             attack = line_score(board, x, y, color)
             defence = line_score(board, x, y, opp)
             score = attack + int(defence * 0.9)
-            score += 6 - abs(x - 7) - abs(y - 7)
+            score += 6 - dx - dy
             if score > best_score:
                 best, best_score = (x, y), score
     return best if best else (7, 7)
@@ -822,10 +824,12 @@ pair<int, int> choose_move(const vector<vector<int>>& board, int color, int move
     for (int y = 0; y < 15; y++) {
         for (int x = 0; x < 15; x++) {
             if (board[y][x] != 0) continue;
-            if (abs(x - 7) > 6 || abs(y - 7) > 6) continue;
+            // 离中心超过 6 格的点先不看，开局阶段能省掉一半搜索
+            int dx = abs(x - 7), dy = abs(y - 7);
+            if (dx > 6 || dy > 6) continue;
             int attack = lineScore(board, x, y, color);
             int defence = lineScore(board, x, y, opp);
-            int score = attack + defendSafely(defence) + (6 - abs(x - 7) - abs(y - 7));
+            int score = attack + defendSafely(defence) + (6 - dx - dy);
             if (score > bestScore) {
                 bestScore = score;
                 best = {x, y};

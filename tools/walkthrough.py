@@ -142,7 +142,9 @@ def main():
     # ---------------------------------------------------------------- 大厅
     print("\n[2] 大厅")
     cards = p.eval("document.querySelectorAll('.module-card').length")
-    check("渲染大厅卡片", cards >= 5, f"实际 {cards}")
+    check("渲染大厅卡片", cards == 4, f"实际 {cards}")
+    links = p.eval("document.querySelectorAll('.hub-link').length")
+    check("工具入口在下方另列", links == 3, f"实际 {links}")
     check("显示用户名", user in (p.eval("document.body.innerText") or ""))
     p.shot(str(SHOTS / "03-hub.png"))
 
@@ -166,14 +168,19 @@ def main():
     # ---------------------------------------------------------------- 对弈
     print("\n[4] AI 对弈")
     p.eval("location.hash = '#/play'")
-    time.sleep(1.4)
+    time.sleep(1.6)
     p.shot(str(SHOTS / "05-play.png"))
-    check("出现棋盘 canvas", p.eval("!!document.querySelector('canvas')"))
+    # 改版后 /play 是准备页，棋盘在 /play/{id}：先提交设置再断言棋盘
+    p.eval("document.querySelector('.setup-foot .btn-primary').click()")
+    time.sleep(5.5)
+    check("提交设置后进到棋盘", "/play/" in (p.eval("location.hash") or ""), p.eval("location.hash"))
+    check("出现棋盘 canvas", p.eval("!!document.querySelector('.board-canvas')"))
 
     # 走一手：点棋盘中心
     rect = p.eval("""
       (() => {
-        const c = document.querySelector('canvas');
+        const c = document.querySelector('.board-canvas');
+        if (!c) return null;
         const r = c.getBoundingClientRect();
         return {x: r.x, y: r.y, w: r.width, h: r.height};
       })()
@@ -193,10 +200,14 @@ def main():
     print("\n[5] 学习模式")
     p.eval("location.hash = '#/learn'")
     time.sleep(1.6)
-    check("渲染教练面板", p.eval("!!document.querySelector('.coach, .coach-panel')"))
     p.shot(str(SHOTS / "07-learn.png"))
+    # 学习模式同样先过准备页，教练面板在对局页的解说页签里
+    p.eval("document.querySelector('.setup-foot .btn-primary').click()")
+    time.sleep(5.5)
+    check("学习模式也进到棋盘", "/play/" in (p.eval("location.hash") or ""), p.eval("location.hash"))
+    check("渲染教练面板", p.eval("!!document.querySelector('.coach')"))
     rect = p.eval("""
-      (() => { const c = document.querySelector('canvas'); if (!c) return null;
+      (() => { const c = document.querySelector('.board-canvas'); if (!c) return null;
         const r = c.getBoundingClientRect(); return {x: r.x, y: r.y, w: r.width, h: r.height}; })()
     """)
     if rect:
@@ -205,7 +216,7 @@ def main():
                    x=rect["x"] + rect["w"] / 2 + 30, y=rect["y"] + rect["h"] / 2 + 30,
                    button="left", clickCount=1)
         time.sleep(2.6)
-    coach_txt = p.eval("document.querySelector('.coach, .coach-panel')?.innerText || ''")
+    coach_txt = p.eval("document.querySelector('.coach')?.innerText || ''")
     check("教练给出评语", len(coach_txt) > 10, coach_txt[:40])
     p.shot(str(SHOTS / "08-learn-coach.png"))
 
