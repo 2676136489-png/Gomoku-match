@@ -1,7 +1,6 @@
-"""人机对局路由。
+"""对局路由：人机对弈与引擎自战。
 
-在线对战走 WebSocket，不在这里。两套接口共用一个 `Game` 对象，
-区别只在「谁有权落子」和「结果怎么广播」。
+服务端权威判定轮到谁、点能不能落、有没有连五，客户端只负责把点击发出来。
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ router = APIRouter(prefix="/api", tags=["game"])
 
 
 class NewGameRequest(BaseModel):
-    mode: str = Field(default="agent", pattern="^(agent|engine|pvp|learn)$")
+    mode: str = Field(default="agent", pattern="^(agent|engine|learn)$")
     difficulty: int = Field(default=3, ge=1, le=4)
     persona: str = Field(default="balanced", pattern="^(aggressive|balanced|defensive)$")
     human_color: int = Field(default=1, ge=1, le=2)
@@ -42,7 +41,7 @@ class ExplainRequest(BaseModel):
 
 
 def _agent_side(game: Game) -> int | None:
-    if game.status != "playing" or game.mode == "pvp":
+    if game.status != "playing":
         return None
     side = opponent_of(game.human_color)
     return side if game.turn == side else None
@@ -141,8 +140,6 @@ def make_move(game_id: str, req: MoveRequest, request: Request) -> dict:
     user = require_user(request)
     game = require_game(game_id, user)
     with game.lock:
-        if game.mode == "online":
-            raise HTTPException(409, "联网对局请通过实时通道落子")
         if game.status != "playing":
             raise HTTPException(409, "对局已结束")
         if game.pending is not None:
@@ -150,7 +147,7 @@ def make_move(game_id: str, req: MoveRequest, request: Request) -> dict:
         if not (0 <= req.x < SIZE and 0 <= req.y < SIZE):
             raise HTTPException(400, "坐标越界")
         side = game.turn
-        if game.mode != "pvp" and side == opponent_of(game.human_color):
+        if side == opponent_of(game.human_color):
             raise HTTPException(409, "未到你的回合")
 
         idx = req.y * SIZE + req.x
@@ -197,8 +194,7 @@ def get_hint(game_id: str, request: Request) -> dict:
     with game.lock:
         if game.status != "playing":
             raise HTTPException(409, "对局已结束")
-        side = game.turn if game.mode == "pvp" else game.human_color
-        return agent_mod.hint(game.pos, side, game.difficulty)
+        return agent_mod.hint(game.pos, game.human_color, game.difficulty)
 
 
 @router.post("/games/{game_id}/undo")
@@ -206,17 +202,16 @@ def undo(game_id: str, request: Request) -> dict:
     user = require_user(request)
     game = require_game(game_id, user)
     with game.lock:
-        if game.mode == "online":
-            raise HTTPException(409, "联网对局不支持悔棋")
         if game.pending is not None and not game.moves:
             game.pending = None
             return {"game": game.snapshot(), "agent": None}
         if not game.moves:
             raise HTTPException(409, "没有可撤销的棋步")
-        steps = 2 if game.mode != "pvp" else 1
+        # 退掉「我一手 + 它一手」，回到自己该下的时候
+        steps = 2
         if len(game.moves) < steps:
             steps = len(game.moves)
-        if game.moves and game.moves[-1]["color"] == game.human_color and game.mode != "pvp":
+        if game.moves and game.moves[-1]["color"] == game.human_color:
             steps = 1
         for _ in range(steps):
             game.pos.undo()

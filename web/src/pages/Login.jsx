@@ -61,9 +61,6 @@ export default function Login({ onAuth }) {
           ))}
         </ul>
 
-        <p className="auth-footnote">
-          账户只保存在这台服务器的数据文件里，密码用 PBKDF2 派生后存储，明文不落盘。
-        </p>
       </section>
 
       <section className="auth-card">

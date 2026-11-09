@@ -1,6 +1,6 @@
 """仓储层。
 
-所有 SQL 只出现在这个文件里。上层（accounts / store / realtime）拿到的都是普通
+所有 SQL 只出现在这个文件里。上层（accounts / store / greedy）拿到的都是普通
 字典，不接触 sqlite3.Row——Row 是「还连着游标的元组」，一旦被传出去并缓存，
 连接关闭后这些引用即失效。
 
@@ -87,66 +87,9 @@ def bump_stats(user_id: int, result: str) -> dict:
     return dict(row) if row else {}
 
 
-def set_rating(user_id: int, rating: float, *, rated: bool = True) -> None:
-    if rated:
-        db.execute(
-            "UPDATE users SET rating = ?, rated_games = rated_games + 1 WHERE id = ?",
-            (rating, user_id),
-        )
-    else:
-        db.execute("UPDATE users SET rating = ? WHERE id = ?", (rating, user_id))
-
-
-def leaderboard(limit: int = 20, *, min_games: int = 1) -> list[dict]:
-    rows = db.query(
-        "SELECT name, rating, rated_games, games, wins, losses, draws,"
-        " best_streak, created_at FROM users"
-        " WHERE rated_games >= ? ORDER BY rating DESC, rated_games DESC LIMIT ?",
-        (min_games, limit),
-    )
-    out = []
-    for i, row in enumerate(rows, 1):
-        item = dict(row)
-        played = item["rated_games"] or 0
-        item["rank"] = i
-        item["win_rate"] = round(item["wins"] / item["games"], 3) if item["games"] else 0.0
-        item["rating"] = round(item["rating"], 1)
-        out.append(item)
-    return out
-
-
 def count_users() -> int:
     row = db.one("SELECT COUNT(*) AS n FROM users")
     return int(row["n"]) if row else 0
-
-
-def rank_of(user_id: int) -> int | None:
-    """全量排名。排序键必须和 leaderboard() 完全一致，否则两块界面会互相打脸。"""
-    me = db.one("SELECT rating, rated_games FROM users WHERE id = ?", (user_id,))
-    if me is None:
-        return None
-    if not me["rated_games"]:
-        return None
-    row = db.one(
-        "SELECT COUNT(*) AS n FROM users WHERE rated_games >= 1"
-        " AND (rating > ? OR (rating = ? AND rated_games > ?))",
-        (me["rating"], me["rating"], me["rated_games"]),
-    )
-    return int(row["n"]) + 1 if row else None
-
-
-def rating_board_stats() -> dict:
-    row = db.one(
-        "SELECT COUNT(*) AS players, AVG(rating) AS avg, MAX(rating) AS top"
-        " FROM users WHERE rated_games >= 1"
-    )
-    if not row:
-        return {"players": 0, "average": 0, "top": 0}
-    return {
-        "players": int(row["players"] or 0),
-        "average": round(row["avg"] or 0, 1),
-        "top": round(row["top"] or 0, 1),
-    }
 
 
 # --------------------------------------------------------------------- 会话
@@ -187,18 +130,14 @@ def purge_sessions() -> int:
 
 
 def create_game(game: dict) -> None:
-    base = int(game.get("clock_base", 0) or 0)
     db.execute(
-        "INSERT INTO games (id, mode, owner_id, black_id, white_id, difficulty, persona,"
-        " human_color, use_llm, rule, strict_ban, step, status, rated,"
-        " clock_base, clock_inc, clock_black, clock_white, turn_started, created_at)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO games (id, mode, owner_id, difficulty, persona,"
+        " human_color, use_llm, rule, strict_ban, step, status, created_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             game["id"],
             game["mode"],
             game.get("owner_id"),
-            game.get("black_id"),
-            game.get("white_id"),
             game.get("difficulty", 3),
             game.get("persona", "balanced"),
             game.get("human_color", 1),
@@ -207,22 +146,8 @@ def create_game(game: dict) -> None:
             int(game.get("strict_ban", False)),
             int(game.get("step", False)),
             game.get("status", "playing"),
-            int(game.get("rated", False)),
-            base,
-            int(game.get("clock_inc", 0) or 0),
-            float(base) if base else None,
-            float(base) if base else None,
-            time.time() if base else None,
             game.get("created_at", time.time()),
         ),
-    )
-
-
-def update_clocks(game_id: str, black: float, white: float, turn_started: float | None) -> None:
-    """每手结算后的剩余秒数。不这么做的话进程重启会把计时对局变回无计时。"""
-    db.execute(
-        "UPDATE games SET clock_black = ?, clock_white = ?, turn_started = ? WHERE id = ?",
-        (black, white, turn_started, game_id),
     )
 
 
@@ -261,24 +186,11 @@ def finish_game(
     winner: int | None,
     reason: str,
     win_line: list[list[int]],
-    rated: bool = False,
-    rating_before: float | None = None,
-    rating_after: float | None = None,
 ) -> None:
     db.execute(
         "UPDATE games SET status = ?, winner = ?, result_reason = ?, win_line = ?,"
-        " rated = ?, rating_before = ?, rating_after = ?, finished_at = ? WHERE id = ?",
-        (
-            status,
-            winner,
-            reason,
-            json.dumps(win_line),
-            int(rated),
-            rating_before,
-            rating_after,
-            time.time(),
-            game_id,
-        ),
+        " finished_at = ? WHERE id = ?",
+        (status, winner, reason, json.dumps(win_line), time.time(), game_id),
     )
 
 
@@ -287,14 +199,14 @@ def moves_of(game_id: str) -> list[dict]:
 
 
 def games_of_user(user_id: int, limit: int = 20, offset: int = 0) -> list[dict]:
-    """一个人参与过的所有对局（无论执黑执白还是人机）。对局大厅的战绩列表用它。"""
+    """一个人下过的棋。大厅的「最近对局」和复盘列表都用它。"""
     return _rows(
         db.query(
             "SELECT g.*,"
             " (SELECT COUNT(*) FROM moves m WHERE m.game_id = g.id) AS ply_count"
-            " FROM games g WHERE g.owner_id = ? OR g.black_id = ? OR g.white_id = ?"
+            " FROM games g WHERE g.owner_id = ?"
             " ORDER BY g.created_at DESC LIMIT ? OFFSET ?",
-            (user_id, user_id, user_id, limit, offset),
+            (user_id, limit, offset),
         )
     )
 
@@ -306,61 +218,3 @@ def count_games() -> dict:
         "games": int(total["n"]) if total else 0,
         "live": int(live["n"]) if live else 0,
     }
-
-
-# --------------------------------------------------------------------- 房间
-
-
-def create_room(room: dict) -> None:
-    db.execute(
-        "INSERT INTO rooms (id, code, host_id, guest_id, game_id, rule, clock_base, clock_inc,"
-        " rated, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            room["id"],
-            room["code"],
-            room["host_id"],
-            room.get("guest_id"),
-            room.get("game_id"),
-            room.get("rule", "renju"),
-            room.get("clock_base", 300),
-            room.get("clock_inc", 5),
-            int(room.get("rated", True)),
-            room.get("status", "open"),
-            room.get("created_at", time.time()),
-        ),
-    )
-
-
-def room_by_code(code: str) -> dict | None:
-    return _row(db.one("SELECT * FROM rooms WHERE code = ? AND status != 'closed'", (code.upper(),)))
-
-
-def room_by_id(room_id: str) -> dict | None:
-    return _row(db.one("SELECT * FROM rooms WHERE id = ?", (room_id,)))
-
-
-def update_room(room_id: str, **fields: Any) -> None:
-    if not fields:
-        return
-    columns = ", ".join(f"{k} = ?" for k in fields)
-    db.execute(f"UPDATE rooms SET {columns} WHERE id = ?", (*fields.values(), room_id))
-
-
-def list_rooms(status: str = "open", limit: int = 30) -> list[dict]:
-    return _rows(
-        db.query(
-            "SELECT r.*, u.name AS host_name, u.rating AS host_rating"
-            " FROM rooms r JOIN users u ON u.id = r.host_id"
-            " WHERE r.status = ? ORDER BY r.created_at DESC LIMIT ?",
-            (status, limit),
-        )
-    )
-
-
-def reap_rooms(max_idle_seconds: float = 1800.0) -> int:
-    """回收长时间无人进入的房间。若不清理，大厅列表会累积大量已失效房间。"""
-    cutoff = time.time() - max_idle_seconds
-    cur = db.execute(
-        "UPDATE rooms SET status = 'closed' WHERE status = 'open' AND created_at < ?", (cutoff,)
-    )
-    return cur.rowcount or 0

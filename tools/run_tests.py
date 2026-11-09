@@ -29,9 +29,9 @@ SUITES = (
     ("引擎", "tests/test_engine.py", False),
     ("沙箱与实验室", "tests/test_lab.py", False),
     ("分析层", "tests/test_insight.py", False),
-    ("存储与等级分", "tests/test_storage.py", False),
+    ("存储与结算", "tests/test_storage.py", False),
+    ("贪心学习", "tests/test_greedy.py", False),
     ("接口", "tests/test_api.py", True),
-    ("在线对战", "tests/test_online.py", True),
 )
 
 
@@ -73,10 +73,12 @@ def main() -> int:
     env = {
         **os.environ,
         "PORT": str(port),
+        # 除了库，上传的棋谱和训练出来的权重表也一起搬到临时目录。
+        # 只换库不换数据目录的话，跑一次测试就会把开发时的模型覆盖掉。
+        "GOMOKU_DATA": str(tmpdir),
         "GOMOKU_DB": str(tmpdir / "test.db"),
         "GOMOKU_LOG": "WARNING",
         "GOMOKU_TEST_BASE": base,
-        "GOMOKU_TEST_WS": base.replace("http://", "ws://"),
         # 本机可能挂着 HTTP_PROXY，别让测试流量走到代理上
         "NO_PROXY": "127.0.0.1,localhost",
         "no_proxy": "127.0.0.1,localhost",

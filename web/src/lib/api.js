@@ -129,9 +129,9 @@ function handle401(res) {
  * 把 token 拼进查询串。
  *
  * 云端的分享网关只放行它认识的那几个请求头，`Authorization` 和自定义头都会在
- * 转发时被丢掉，于是「登录成功、下一个请求就掉回登录页」。WebSocket 因为浏览器
- * 不允许设请求头、只能把 token 挂在 query 上，反而一直正常——这就是定位线索。
- * 所以这里也走 query。服务端日志只记 path 不含查询串，token 不会落进日志。
+ * 转发时被丢掉，于是「登录成功、下一个请求就掉回登录页」。定位时发现：凡是把
+ * 凭据挂在查询串上的请求都穿过去了，所以这里也走 query。服务端日志只记 path
+ * 不含查询串，token 不会落进日志。
  */
 function withToken(path, extra) {
   const params = []
@@ -203,7 +203,6 @@ export const api = {
   me: () => request('/api/auth/me'),
   changePassword: (oldPassword, newPassword) =>
     jsonPost('/api/auth/password', { old: oldPassword, new: newPassword }),
-  leaderboard: () => request('/api/leaderboard'),
 
   // 元信息
   config: () => request('/api/config'),
@@ -233,16 +232,17 @@ export const api = {
   // 竞技场
   arenaMatch: (payload, onEvent, signal) => stream('/api/arena/match', payload, onEvent, signal),
 
+  // 贪心学习
+  greedyStatus: () => request('/api/greedy/status'),
+  greedyCorpus: (preview = 48) => request(`/api/greedy/corpus?preview=${preview}`),
+  greedyCorpusItem: (id) => request(`/api/greedy/corpus/${encodeURIComponent(id)}`),
+  uploadCorpus: (name, text) => jsonPost('/api/greedy/corpus', { name, text }),
+  deleteCorpus: (id) => request(`/api/greedy/corpus/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  trainGreedy: (onEvent, signal) => stream('/api/greedy/train', {}, onEvent, signal),
+  resetGreedy: () => jsonPost('/api/greedy/reset'),
+
   // 落点网络的可视化扫描
   neuralScan: (payload) => jsonPost('/api/neural/scan', payload),
-
-  // 在线对战
-  rooms: () => request('/api/rooms'),
-  createRoom: (payload) => jsonPost('/api/rooms', payload),
-  peekRoom: (code) => request(`/api/rooms/${encodeURIComponent(code)}`),
-  joinRoom: (code) => jsonPost(`/api/rooms/${encodeURIComponent(code)}/join`),
-  closeRoom: (id) => request(`/api/rooms/${id}`, { method: 'DELETE' }),
-  onlineStats: () => request('/api/online/stats'),
 
   // 棋谱与主页
   history: (limit = 20, offset = 0) => request(`/api/history?limit=${limit}&offset=${offset}`),

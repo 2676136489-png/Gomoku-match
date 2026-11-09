@@ -227,10 +227,6 @@ export default function Code({ config }) {
       <header className="page-head">
         <div>
           <h2>代码工坊</h2>
-          <p>
-            编写 <code>choose_move</code> 函数，或导入已有的 .py / .cpp 文件。代码在独立子进程中运行，
-            每手设有超时限制，越权调用会在静态校验阶段被拦截。
-          </p>
         </div>
         <div className="lab-caps">
           <span className={`pill ${caps.python?.available ? 'pill-live' : 'pill-lose'}`}>
@@ -327,7 +323,6 @@ export default function Code({ config }) {
                 中止
               </button>
             )}
-            <span className="code-actions-note">校验仅在空盘试走一手，不代表对局结果</span>
           </div>
 
           {verify && (
@@ -356,9 +351,6 @@ export default function Code({ config }) {
               <h2>导入代码</h2>
               <span className="panel-note">.py / .cpp</span>
             </div>
-            <p className="code-upload-note">
-              拖文件到左边编辑器，或者从这里选。文件只读进浏览器，跟手写的是同一条路。
-            </p>
             <input
               ref={fileRef}
               type="file"
@@ -372,7 +364,6 @@ export default function Code({ config }) {
             <button type="button" className="btn code-upload-btn" onClick={() => fileRef.current?.click()}>
               选择文件…
             </button>
-            <p className="code-upload-hint">最大 {sizeText(MAX_BYTES)}；扩展名决定语言，跟着换页签</p>
           </section>
 
           <section className="panel">
@@ -525,7 +516,6 @@ export default function Code({ config }) {
           <div className="panel lab-feed">
             <div className="panel-head">
               <h2>对局过程</h2>
-              <span className="panel-note">每手的落点、耗时与备注</span>
             </div>
             {moves.length === 0 ? (
               <p className="empty-note">开始对弈后，这里会逐手冒出来。</p>

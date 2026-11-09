@@ -1,15 +1,18 @@
 """内置算法。
 
 竞技场和代码实验室都用同一个入口：给局面，返回一个合法落点。
-四路实现刻意拉开层次，好让人看清「搜索」到底带来了什么：
+五路实现刻意拉开层次，好让人看清「搜索」和「学习」各自带来了什么：
 
-- random  随机合法点。基线，用来证明其它三个不是靠运气。
+- random  随机合法点。基线，用来证明其它几路不是靠运气。
 - greedy  只算当前这一手的棋形分，不看对手后面的应手。快，也短视。
+- tuned   贪心的同一套评分形式，棋形分值由棋谱学出来，见 tuning.py。
 - minimax negamax + alpha-beta，深度按难度走。
 - neural  直接跑落点价值网络，不做搜索。
 
-四者都遵守同一条硬约束：连珠规则下黑棋不得落在禁手点。过滤放在选区之后
+五路实现刻意拉开层次，好让人看清「搜索」和「学习」各自带来了什么：过滤放在选区之后
 惰性做——排序一次、从高到低逐个验，命中第一个合法的就收手，通常只验一次。
+
+五路都遵守同一条硬约束：连珠规则下黑棋不得落在禁手点。
 """
 
 from __future__ import annotations
@@ -17,7 +20,7 @@ from __future__ import annotations
 import random
 import time
 
-from . import net, rules, shapes
+from . import net, rules, shapes, tuning
 from .position import BLACK, CELLS, OPPONENT, WEIGHT, Position, coord
 from .search import Searcher
 
@@ -35,6 +38,14 @@ ALGORITHMS = {
         "tag": "无搜索",
         "search": False,
         "speed": "约 10 ms",
+    },
+    "tuned": {
+        "label": "学习型贪心",
+        "brief": "和贪心同一套评分公式，但棋形分值不是手写的——先从内置棋谱里学，"
+        "再随时喂新棋谱继续学。没有搜索，纯评估，所以能直接看出「评估值多少钱」。",
+        "tag": "学习",
+        "search": False,
+        "speed": "约 15 ms",
     },
     "minimax": {
         "label": "极小化极大",
@@ -108,6 +119,10 @@ def _greedy(pos: Position, color: int, _difficulty: int) -> tuple[int, str]:
     idx = _first_legal(pos, [s[2] for s in scored], color)
     label = shapes.SHAPE_NAMES[max(pos.shapes_at(idx, color))]
     return idx, f"棋形分 {label}，进攻 {attack} / 防守 {defence}"
+
+
+def _tuned(pos: Position, color: int, _difficulty: int) -> tuple[int, str]:
+    return tuning.get_model().choose(pos, color)
 
 
 def _minimax(pos: Position, color: int, difficulty: int) -> tuple[int, str]:
@@ -204,6 +219,7 @@ def _neural(pos: Position, color: int, difficulty: int) -> tuple[int, str]:
 _IMPL = {
     "random": _random,
     "greedy": _greedy,
+    "tuned": _tuned,
     "minimax": _minimax,
     "neural": _neural,
 }
@@ -234,6 +250,14 @@ def describe() -> list[dict]:
         if key == "neural":
             item["ready"] = model.ready
             item["params"] = model.describe()["params"]
+        if key == "tuned":
+            tuned = tuning.get_model().describe()
+            item["ready"] = True
+            item["trained"] = tuned["trained"]
+            item["params"] = tuned["parameters"]
+            item["brief"] = (
+                tuned.get("summary") or item["brief"]
+            )
         if key == "minimax":
             item["levels"] = [
                 {"level": k, "label": v["label"], "depth": v["depth"]}

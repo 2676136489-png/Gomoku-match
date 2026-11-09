@@ -153,7 +153,13 @@ class Page:
             awaitPromise=True,
         )
         if "exceptionDetails" in r:
-            raise RuntimeError(r["exceptionDetails"].get("text"))
+            # details["text"] 只有一句 "Uncaught"，真正的原因在 exception.description 里
+            details = r["exceptionDetails"]
+            raise RuntimeError(
+                (details.get("exception") or {}).get("description")
+                or details.get("text")
+                or "JS 执行失败"
+            )
         return r.get("result", {}).get("value")
 
     def shot(self, path: str, full: bool = False):

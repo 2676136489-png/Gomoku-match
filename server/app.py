@@ -3,7 +3,7 @@
 这个文件只做四件事：建应用、挂中间件、挂路由、托管前端产物。具体逻辑都在
 `api/` 下的路由模块里——上一版这里是 690 行，改一个接口要在里面翻半天。
 
-启动时做三件事：跑数据库迁移、把 v2 的 accounts.json 导一次、起超时巡检线程。
+启动时做三件事：跑数据库迁移、把 v2 的 accounts.json 导一次、清掉过期会话。
 三件都是幂等的，重启多少次都不会重复执行。
 """
 
@@ -20,13 +20,12 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import accounts, db, realtime, repo
+from . import accounts, db, repo
 from .api import accounts as api_accounts
 from .api import games as api_games
+from .api import greedy as api_greedy
 from .api import lab as api_lab
 from .api import meta as api_meta
-from .api import online as api_online
-from .api import socket as api_socket
 from .observability import Observability, metrics, setup_logging
 from .runtime import accounts as account_store
 from .runtime import store
@@ -58,7 +57,6 @@ async def lifespan(app: FastAPI):
         log.info("legacy import: %s", result)
 
     repo.purge_sessions()
-    realtime.start_ticker()
     log.info("service up", extra={"version": VERSION})
     yield
     log.info("service down")
@@ -67,7 +65,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Gomoku Match",
     version=VERSION,
-    description="15×15 国际连珠：规则引擎、Alpha-Beta 搜索、学习型落点网络、在线对战与天梯。",
+    description="15×15 国际连珠：规则引擎、Alpha-Beta 搜索、学习型落点网络、可学习贪心与算法实验室。",
     lifespan=lifespan,
     docs_url="/api/docs",
     redoc_url=None,
@@ -87,16 +85,13 @@ app.add_middleware(
     expose_headers=["X-Request-Id", "X-RateLimit-Remaining"],
 )
 
-for module in (api_accounts, api_games, api_lab, api_meta, api_online, api_socket):
+for module in (api_accounts, api_games, api_lab, api_meta, api_greedy):
     app.include_router(module.router)
 
 
 # --------------------------------------------------------------------- 指标
 
 metrics.gauge("gomoku_accounts_total", account_store.count)
-metrics.gauge("gomoku_online_users", realtime.hub.online_users)
-metrics.gauge("gomoku_live_games", realtime.hub.online_games)
-metrics.gauge("gomoku_match_queue", realtime.hub.queue_size)
 metrics.gauge("gomoku_hot_games", lambda: len(store._games))
 
 
@@ -152,6 +147,10 @@ if DIST.exists():
     @app.get("/{full_path:path}", include_in_schema=False)
     def spa(full_path: str) -> FileResponse:
         if full_path.startswith("api/"):
+            raise StarletteHTTPException(404)
+        # 发布沙箱是增量覆盖：本地已删除的 /studio/ 静态文件仍留在远端，
+        # 显式挡掉，避免废弃界面还能从旧链接打开。
+        if full_path == "studio" or full_path.startswith("studio/"):
             raise StarletteHTTPException(404)
         candidate = DIST / full_path
         if full_path and candidate.is_file():

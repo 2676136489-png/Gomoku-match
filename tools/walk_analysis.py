@@ -22,7 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from cdp import Page, ensure_browser  # noqa: E402
-from walk_online import ensure_server  # noqa: E402
+from harness import ensure_server  # noqa: E402
 
 BASE = "http://127.0.0.1:8000"
 SHOTS = Path(__file__).resolve().parent.parent / "docs" / "walk"
@@ -88,8 +88,9 @@ def main() -> int:
     check("进入开局准备页", p.eval('!!document.querySelector(".setup")'))
     check("对局页不在这里", p.eval('!document.querySelector(".board-canvas")'))
     cards = p.eval("document.querySelectorAll('.setup-card').length")
-    check("四种对手可选", cards == 4, f"{cards} 张")
-    check("准备页说明了为什么、下一步", p.eval('!!document.querySelector(".setup-step-head p")'))
+    # 真人房删掉之后只剩三种：对弈 / 学习 / 纯引擎
+    check("三种对手可选", cards == 3, f"{cards} 张")
+    check("准备页分三步设置", p.eval("document.querySelectorAll('.setup-step').length") == 3)
 
     # 整张表单比一屏高，提交条吸底才够得着。这条断言最初是红的：
     # 按钮在 y≈1178，比 1080 的视口还低 100px，第一屏根本看不到怎么开始。
@@ -261,6 +262,19 @@ def main() -> int:
 
     # --- 第四段：复盘页 ---
     game_id = (p.eval("location.hash") or "").split("/play/")[-1]
+
+    # 先看一眼棋谱库列表：删掉在线对战之后，这一列从「分数」换成了「终局」，
+    # 数据源也从等级分差值换成了 result_reason，最容易出现「整列都是 —」。
+    p.eval("location.hash = '#/replay'")
+    time.sleep(1.6)
+    heads = p.eval(
+        "[...document.querySelectorAll('.replay-table thead th')].map(th => th.textContent.trim())"
+    )
+    # 只验表头。这一局还没下完，「终局」在库里就是空的；
+    # 字段本身由 tests/test_api.py 的 history 用例守着。
+    check("棋谱库列出终局列", "终局" in (heads or []), str(heads))
+    check("棋谱库不再有分数列", "分数" not in (heads or []), str(heads))
+
     p.eval(f"location.hash = '#/replay/{game_id}'")
     time.sleep(3.0)
 

@@ -119,10 +119,12 @@ def main() -> None:
 
     # --- 元信息 ---
     cfg = client.get("/api/config").json()
-    check("算法清单四项", len(cfg["algorithms"]) == 4, str([a["key"] for a in cfg["algorithms"]]))
+    algs = [a["key"] for a in cfg["algorithms"]]
+    check("算法清单五路", len(algs) == 5, str(algs))
+    check("清单里有学习型贪心", "tuned" in algs, str(algs))
     check("规则两种", len(cfg["rules"]) == 2)
     tut = client.get("/api/tutorial").json()
-    check("教程五章", len(tut["chapters"]) == 5, str(len(tut["chapters"])))
+    check("教程六章", len(tut["chapters"]) == 6, str(len(tut["chapters"])))
     check("教程含示例棋盘", any(s.get("demo") for c in tut["chapters"] for s in c["sections"]))
 
     # --- 对局（AI 对弈） ---
@@ -306,9 +308,69 @@ def main() -> None:
     r = client.post(f"/api/games/{sgid}/undo")
     check("讲解模式悔棋清空待确认", r.json()["game"]["pending"] is None, str(r.json()["game"]["pending"]))
 
+    # --- 贪心学习：状态 / 棋谱库 / 上传 / 训练 ---
+    st = client.get("/api/greedy/status")
+    check("贪心状态可读", st.status_code == 200, st.text[:160])
+    status = st.json()
+    check("状态里带模型", {"trained", "parameters", "alpha", "table"} <= set(status["model"]), str(list(status["model"])))
+    check("状态里带棋谱摘要", status["corpus"]["total"] >= 5, str(status["corpus"]))
+    check("状态里带训练参数", status["params"]["epochs"] > 0, str(status["params"]))
+    check("参照算法一并返回", [a["key"] for a in status["algorithms"]] == ["greedy", "tuned"],
+          str([a["key"] for a in status["algorithms"]]))
+
+    corpus_list = client.get("/api/greedy/corpus?preview=4").json()
+    check("棋谱库可读", len(corpus_list["items"]) >= 5, str(len(corpus_list["items"])))
+    check("列表只给预览手数", all(len(i["moves"]) <= 4 for i in corpus_list["items"]))
+    builtin = next(i for i in corpus_list["items"] if i["source"] == "builtin")
+    check("内置棋谱排在前面", corpus_list["items"][0]["source"] == "builtin")
+
+    full = client.get(f"/api/greedy/corpus/{builtin['id']}").json()["item"]
+    check("单盘棋谱给全量", len(full["moves"]) == full["plies"], str((len(full["moves"]), full["plies"])))
+    check("取不存在的棋谱 404", client.get("/api/greedy/corpus/nope").status_code == 404)
+
+    # 上传一盘最简合法棋谱（黑在 H8..L8 连五）
+    upload = client.post(
+        "/api/greedy/corpus",
+        json={"name": "测试上传", "text": "(;GM[1]SZ[15];B[hh];W[aa];B[ih];W[ba];B[jh];W[ca];B[kh];W[da];B[lh])"},
+    )
+    check("上传棋谱成功", upload.status_code == 200, upload.text[:200])
+    added = upload.json()["item"]
+    check("上传的标记为 upload", added["source"] == "upload", str(added["source"]))
+    check("上传的算出结果", added["winner"] == 1, str(added.get("winner")))
+    check("上传后总数加一", upload.json()["summary"]["total"] == corpus_list["summary"]["total"] + 1)
+
+    bad = client.post("/api/greedy/corpus", json={"name": "坏的", "text": "没有坐标的一段话"})
+    check("坏棋谱被拒成 400", bad.status_code == 400, str(bad.status_code))
+
+    check("内置棋谱不可删", client.delete(f"/api/greedy/corpus/{builtin['id']}").status_code == 400)
+    check("删除上传的棋谱", client.delete(f"/api/greedy/corpus/{added['id']}").status_code == 200)
+    check("删完就查不到", client.get(f"/api/greedy/corpus/{added['id']}").status_code == 404)
+
+    events = read_sse(client, "/api/greedy/train", {})
+    kinds = [e["type"] for e in events]
+    last = events[-1] if events else {}
+    check("训练流带开始事件", kinds[0] == "start", str(kinds[:3]))
+    check("训练流有阶段推进", kinds.count("stage") >= 2, str(kinds))
+    check("训练流按轮上报", kinds.count("epoch") == status["params"]["epochs"], str(kinds.count("epoch")))
+    check("训练流以 done 结束", kinds[-1] == "done", str(kinds[-3:]))
+    result = last.get("result") or {}
+    check("训练返回验证指标", "eval" in result and "eval_before" in result, str(list(result)))
+    check("训练后复现率提高", result["eval"]["top1"] >= result["eval_before"]["top1"],
+          f"{result['eval_before']['top1']} → {result['eval']['top1']}")
+    check("训练返回耗时", isinstance(result.get("seconds"), (int, float)), str(result.get("seconds")))
+    check("训练后模型标记已训练", (last.get("model") or {}).get("trained") is True)
+    print(f"       贪心训练：{result.get('samples')} 个局面，复现率 "
+          f"{result['eval_before']['top1']:.1%} → {result['eval']['top1']:.1%}，{result.get('seconds')}s")
+
+    reset = client.post("/api/greedy/reset")
+    check("能还原成手写分值表", reset.status_code == 200 and reset.json()["model"]["trained"] is False,
+          reset.text[:160])
+    check("还原后 α 回到 0.9", abs(reset.json()["model"]["alpha"] - 0.9) < 1e-6, str(reset.json()["model"]["alpha"]))
+
     # --- 战绩 ---
-    r = client.get("/api/leaderboard")
-    check("排行榜可读", "rows" in r.json())
+    r = client.get("/api/auth/me")
+    check("me 带战绩", "stats" in r.json()["user"], str(list(r.json()["user"])))
+    check("不存在的账户 404", client.get("/api/profile/没有这个人").status_code == 404)
 
     r = client.post(
         "/api/games",
@@ -318,6 +380,13 @@ def main() -> None:
     # 执白，Agent 已先手；随便下到终局太慢，这里只确认快照字段齐全
     snap = client.get(f"/api/games/{quick}").json()["game"]
     check("快照含规则与禁手字段", "rule_label" in snap and "banned" in snap)
+
+    # 棋谱列表的「终局」列直接读 reason。等级分删掉之后，这一列最容易变成整列空，
+    # 所以把字段本身钉住：键在，且不再有 rating_delta。
+    hist = client.get("/api/history?limit=5").json()["rows"]
+    check("战绩行带终局原因", bool(hist) and "reason" in hist[0], str(sorted(hist[0]) if hist else []))
+    check("战绩行还带状态", bool(hist) and "status" in hist[0])
+    check("战绩行没有等级分字段", all("rating_delta" not in row for row in hist))
 
     # --- 改密码 ---
     r = client.post("/api/auth/password", json={"old": password, "new": "new-pass-2026"})

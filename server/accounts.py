@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from . import db, elo, repo
+from . import db, repo
 
 ROOT = Path(__file__).resolve().parent.parent
 LEGACY_FILE = ROOT / "data" / "accounts.json"
@@ -35,6 +35,8 @@ NAME_RE = re.compile(r"^[A-Za-z0-9_\u4e00-\u9fa5]{2,20}$")
 
 MAX_FAILS = 8
 FAIL_WINDOW = 300.0
+
+MODE_LABELS = {"agent": "AI 对弈", "learn": "学习模式", "engine": "纯引擎"}
 
 
 class AuthError(Exception):
@@ -175,52 +177,19 @@ class AccountStore:
 
     # ---------------------------------------------------------------- 战绩
 
-    def record(
-        self,
-        name: str,
-        *,
-        mode: str,
-        result: str,
-        moves: int,
-        opponent: str,
-        meta: dict | None = None,
-    ) -> dict:
-        """记一局人机或双人战绩。
+    def record(self, name: str, *, result: str) -> dict:
+        """记一局人机对局的胜负。
 
         棋谱本身在 games / moves 两张表里，这里只更新聚合计数。
         上一版把最近 40 条战绩塞进用户的 JSON 字段，那是「没有表」时的权宜；
-        现在战绩列表从对局表直接查，天然分页、天然跨重启。
+        现在战绩列表从对局表直接查，天然分页、天然跨重启，所以这里不需要
+        模式、手数、对手这些明细——它们都在对局行上。
         """
         user = repo.user_by_name(name)
         if user is None:
             raise AuthError("账户不存在", 404)
         stats = repo.bump_stats(user["id"], result)
         return self._stats_view(stats)
-
-    def settle_rated(self, winner_id: int, loser_id: int | None, draw: bool = False) -> dict:
-        """天梯结算。返回两边的 (旧分, 新分, 变化量)，前端拿它做动效。
-
-        loser_id 为 None 表示对手已注销，只给赢家算分但不改分——对局记录保留。
-        """
-        a = repo.user_by_id(winner_id)
-        if a is None:
-            raise AuthError("账户不存在", 404)
-        b = repo.user_by_id(loser_id) if loser_id else None
-        if b is None:
-            return {"rated": False, "reason": "对手账户缺失"}
-
-        score_a = 0.5 if draw else 1.0
-        new_a, new_b, delta = elo.settle(
-            a["rating"], b["rating"], score_a,
-            games_a=a["rated_games"], games_b=b["rated_games"],
-        )
-        repo.set_rating(a["id"], new_a, rated=True)
-        repo.set_rating(b["id"], new_b, rated=True)
-        return {
-            "rated": True,
-            "black": {"name": a["name"], "before": a["rating"], "after": new_a, "delta": delta},
-            "white": {"name": b["name"], "before": b["rating"], "after": new_b, "delta": -delta},
-        }
 
     # ---------------------------------------------------------------- 输出
 
@@ -234,8 +203,6 @@ class AccountStore:
             "streak": user.get("streak", 0),
             "best_streak": user.get("best_streak", 0),
             "win_rate": round(user.get("wins", 0) / games, 3) if games else 0.0,
-            "rating": round(user.get("rating", elo.START), 1),
-            "tier": elo.tier(user.get("rating", elo.START)),
         }
 
     def _history(self, user_id: int, limit: int = 20) -> list[dict]:
@@ -244,17 +211,14 @@ class AccountStore:
         for row in rows:
             if row["status"] not in ("finished", "abandoned"):
                 continue
-            human = 1 if row["black_id"] == user_id else 2
+            # 现在是单人局：人执哪一色在建局时就定了，胜负要拿它跟 winner 比。
+            # 以前这里读 black_id 判断「我坐哪边」，那个字段随真人房一起删了。
+            human = row.get("human_color") or 1
             if row["winner"] is None:
                 result = "draw"
             else:
                 result = "win" if row["winner"] == human else "loss"
-            if row["mode"] in ("pvp", "online"):
-                other_id = row["white_id"] if human == 1 else row["black_id"]
-                other = repo.user_by_id(other_id) if other_id else None
-                opponent = other["name"] if other else "对手"
-            else:
-                opponent = f"{row['mode']}·难度{row['difficulty']}"
+            opponent = MODE_LABELS.get(row["mode"], row["mode"]) + f"·难度{row['difficulty']}"
             out.append(
                 {
                     "id": row["id"],
@@ -263,12 +227,6 @@ class AccountStore:
                     "moves": row["ply_count"] or row["moves_count"],
                     "opponent": opponent,
                     "at": row["finished_at"] or row["created_at"],
-                    "rated": bool(row["rated"]),
-                    "rating_delta": (
-                        round((row["rating_after"] or 0) - (row["rating_before"] or 0), 1)
-                        if row["rated"] and row["rating_before"] is not None
-                        else None
-                    ),
                     "reason": row["result_reason"],
                 }
             )
@@ -284,22 +242,6 @@ class AccountStore:
             "stats": self._stats_view(user),
             "history": self._history(user["id"]),
         }
-
-    def leaderboard(self, limit: int = 20) -> list[dict]:
-        rows = repo.leaderboard(limit)
-        for row in rows:
-            row["tier"] = elo.tier(row["rating"])["label"]
-        return rows
-
-    def gamified(self) -> dict:
-        return {
-            "elo": elo.describe(),
-            "board": repo.rating_board_stats(),
-            "tiers": [
-                {"min": t, "label": n, "count": 0} for t, n in elo.TIERS
-            ],
-        }
-
 
 # --------------------------------------------------------------------- 旧数据迁移
 

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from .. import db, elo, repo
+from .. import repo
 from ..accounts import AuthError
-from ..runtime import accounts, store
+from ..runtime import accounts
 from .deps import bearer, require_user
 
 router = APIRouter(prefix="/api", tags=["account"])
@@ -50,11 +50,7 @@ def logout(request: Request) -> dict:
 @router.get("/auth/me")
 def me(request: Request) -> dict:
     user = require_user(request)
-    return {
-        "user": accounts.public(user["name"]),
-        "persistent": accounts.persistent,
-        "elo": elo.describe(),
-    }
+    return {"user": accounts.public(user["name"]), "persistent": accounts.persistent}
 
 
 @router.post("/auth/password")
@@ -67,50 +63,29 @@ def change_password(req: PasswordRequest, request: Request) -> dict:
     return {"ok": True, "token": token}
 
 
-@router.get("/leaderboard")
-def leaderboard(limit: int = 20) -> dict:
-    rows = accounts.leaderboard(max(1, min(limit, 100)))
-    return {
-        "rows": rows,
-        "accounts": accounts.count(),
-        "board": repo.rating_board_stats(),
-        "metrics": db.info()["engine"],
-    }
-
-
 @router.get("/history")
 def history(request: Request, limit: int = 20, offset: int = 0) -> dict:
-    """棋谱列表。带 mode / result / 对手 / 手数 / 时间，前端点进去能回放。"""
+    """棋谱列表。带模式 / 结果 / 手数 / 时间，前端点进去能回放。"""
     user = require_user(request)
     limit = max(1, min(limit, 100))
     rows = repo.games_of_user(user["id"], limit=limit, offset=max(0, offset))
     out = []
     for row in rows:
-        human = 1 if row["black_id"] == user["id"] else 2
         if row["winner"] is None:
             result = "draw"
+        elif row["winner"] == row["human_color"]:
+            result = "win"
         else:
-            result = "win" if row["winner"] == human else "loss"
-        opponent = "机器"
-        if row["mode"] in ("online", "pvp"):
-            other_id = row["white_id"] if human == 1 else row["black_id"]
-            other = repo.user_by_id(other_id) if other_id else None
-            opponent = other["name"] if other else "对手"
+            result = "loss"
         out.append(
             {
                 "id": row["id"],
                 "mode": row["mode"],
                 "result": result if row["status"] in ("finished", "abandoned") else "live",
                 "status": row["status"],
-                "opponent": opponent,
+                "opponent": f"难度 {row['difficulty']} · {row['persona']}",
                 "moves": row["ply_count"] or row["moves_count"],
                 "at": row["finished_at"] or row["created_at"],
-                "rated": bool(row["rated"]),
-                "rating_delta": (
-                    round((row["rating_after"] or 0) - (row["rating_before"] or 0), 1)
-                    if row["rated"] and row["rating_before"] is not None
-                    else None
-                ),
                 "reason": row["result_reason"],
             }
         )
@@ -119,11 +94,7 @@ def history(request: Request, limit: int = 20, offset: int = 0) -> dict:
 
 @router.get("/profile/{name}")
 def profile(name: str) -> dict:
-    """公开主页：段位、排名、数据、最近棋谱。天梯点名字就跳这儿。"""
     user = repo.user_by_name(name)
     if user is None:
         raise HTTPException(404, "账户不存在")
-    view = accounts.public(user["name"])
-    view["rank"] = repo.rank_of(user["id"])
-    view["tier"] = elo.tier(user["rating"])
-    return {"user": view}
+    return {"user": accounts.public(user["name"])}

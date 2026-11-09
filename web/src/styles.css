@@ -393,8 +393,12 @@ pre {
   );
 }
 
+.foot > span {
+  display: inline-flex;
+  gap: 12px;
+}
+
 .foot a {
-  margin-left: 8px;
   color: var(--ink-3);
   border-bottom-color: var(--rule);
 }
@@ -641,11 +645,6 @@ pre {
   border-color: rgba(51, 80, 95, 0.4);
   background: rgba(51, 80, 95, 0.09);
   color: var(--indigo);
-}
-
-.pill-done {
-  border-color: var(--rule-strong);
-  color: var(--ink-1);
 }
 
 .pill-idle,
@@ -992,8 +991,7 @@ input[type="range"]::-webkit-slider-thumb {
   align-items: start;
 }
 
-.board-column,
-.side-column {
+.board-column {
   display: flex;
   flex-direction: column;
   gap: 14px;

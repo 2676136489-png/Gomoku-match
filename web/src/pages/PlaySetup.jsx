@@ -12,10 +12,9 @@ import { navigate } from '../lib/router'
  */
 
 const FALLBACK_MODES = [
-  { key: 'agent', label: 'AI 对弈', brief: '跟引擎 Agent 下棋，可选执黑或执白' },
-  { key: 'learn', label: '学习模式', brief: '每手给出教练点评：你形成了什么、对手威胁在哪' },
-  { key: 'engine', label: '纯引擎', brief: '关掉 Agent 层，只跑搜索' },
-  { key: 'pvp', label: '同屏双人', brief: '同一个屏幕轮流落子' },
+  { key: 'agent', label: 'AI 对弈', brief: '三档共用一套搜索算法；本档由大模型在候选落点中择一，模型未启用时算法自选。' },
+  { key: 'learn', label: '学习模式', brief: '对手决策与 AI 对弈相同，每手附一条按棋规生成的教练点评；点评不调用模型。' },
+  { key: 'engine', label: '纯引擎', brief: '仅由搜索算法决策，全程不调用模型、无点评；作为对照组。' },
 ]
 
 const FALLBACK_RULES = [
@@ -23,7 +22,7 @@ const FALLBACK_RULES = [
   { key: 'freestyle', label: '自由规则', brief: '无禁手，五子及以上即胜' },
 ]
 
-const MODE_ORDER = ['agent', 'learn', 'engine', 'pvp']
+const MODE_ORDER = ['agent', 'learn', 'engine']
 
 export default function PlaySetup({ config, initialMode = 'agent' }) {
   const modes = useMemo(() => {
@@ -55,16 +54,15 @@ export default function PlaySetup({ config, initialMode = 'agent' }) {
 
   const set = (patch) => setForm((prev) => ({ ...prev, ...patch }))
 
-  const vsEngine = form.mode !== 'pvp'
   const modeInfo = modes.find((m) => m.key === form.mode)
   const levelInfo = levels.find((l) => l.level === form.difficulty)
   const personaInfo = personas.find((p) => p.key === form.persona)
 
   const summary = [
     modeInfo?.label,
-    vsEngine ? levelInfo?.label : null,
-    vsEngine && form.mode !== 'engine' ? personaInfo?.label : null,
-    form.mode === 'pvp' ? '同屏轮流' : form.human_color === 1 ? '执黑' : '执白',
+    levelInfo?.label,
+    form.mode !== 'engine' ? personaInfo?.label : null,
+    form.human_color === 1 ? '执黑' : '执白',
     rules.find((r) => r.key === form.rule)?.label,
   ]
     .filter(Boolean)
@@ -86,14 +84,13 @@ export default function PlaySetup({ config, initialMode = 'agent' }) {
     <div className="setup">
       <header className="setup-head">
         <h2>开始一局</h2>
-        <p>先把对手和强度定下来，再进棋盘。这些选项只在开局前生效，对局中不再出现。</p>
       </header>
 
       <FirstRunTip
         id="setup"
         title="第一次来，按这个顺序走"
         steps={[
-          '在第 1 步选一个对手，四种模式的区别写在卡片里。',
+          '在第 1 步选一个对手，三种用法的区别写在卡片里。',
           '第 2 步定强度和风格，强度对应搜索深度，风格对应进攻倾向。',
           '点右下角「开始对局」进棋盘。对局中只剩悔棋、提示、复盘、新对局四个按钮，改设置要重开一局。',
         ]}
@@ -104,7 +101,6 @@ export default function PlaySetup({ config, initialMode = 'agent' }) {
           <b>1</b>
           <div>
             <h3>选择对手</h3>
-            <p>同一套引擎，四种用法。不确定选哪个就用 AI 对弈。</p>
           </div>
         </div>
         <div className="setup-cards">
@@ -122,69 +118,60 @@ export default function PlaySetup({ config, initialMode = 'agent' }) {
         </div>
       </section>
 
-      {vsEngine && (
-        <section className="setup-step">
-          <div className="setup-step-head">
-            <b>2</b>
-            <div>
-              <h3>强度与风格</h3>
-              <p>
-                强度决定<code>搜索深度</code>，直接换棋力；风格只改候选点的取舍倾向，不改棋力。改动即时反映在
-                下方摘要。
-              </p>
-            </div>
+      <section className="setup-step">
+        <div className="setup-step-head">
+          <b>2</b>
+          <div>
+            <h3>强度与风格</h3>
           </div>
+        </div>
 
+        <div className="setup-field">
+          <span className="setup-label">强度</span>
+          <div className="chips chips-4">
+            {levels.map((l) => (
+              <button
+                key={l.level}
+                type="button"
+                className={`chip ${form.difficulty === l.level ? 'is-active' : ''}`}
+                data-level={l.level}
+                onClick={() => set({ difficulty: l.level })}
+              >
+                {l.label}
+                <em>
+                  <Term k="depth">深度</Term> {l.depth}
+                </em>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {form.mode !== 'engine' && personas.length > 0 && (
           <div className="setup-field">
-            <span className="setup-label">强度</span>
-            <div className="chips chips-4">
-              {levels.map((l) => (
+            <span className="setup-label">风格</span>
+            <div className="chips">
+              {personas.map((p) => (
                 <button
-                  key={l.level}
+                  key={p.key}
                   type="button"
-                  className={`chip ${form.difficulty === l.level ? 'is-active' : ''}`}
-                  data-level={l.level}
-                  onClick={() => set({ difficulty: l.level })}
+                  className={`chip ${form.persona === p.key ? 'is-active' : ''}`}
+                  data-persona={p.key}
+                  title={p.brief}
+                  onClick={() => set({ persona: p.key })}
                 >
-                  {l.label}
-                  <em>
-                    <Term k="depth">深度</Term> {l.depth}
-                  </em>
+                  {p.label}
                 </button>
               ))}
             </div>
           </div>
-
-          {form.mode !== 'engine' && personas.length > 0 && (
-            <div className="setup-field">
-              <span className="setup-label">风格</span>
-              <div className="chips">
-                {personas.map((p) => (
-                  <button
-                    key={p.key}
-                    type="button"
-                    className={`chip ${form.persona === p.key ? 'is-active' : ''}`}
-                    data-persona={p.key}
-                    title={p.brief}
-                    onClick={() => set({ persona: p.key })}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
-      )}
+        )}
+      </section>
 
       <section className="setup-step">
         <div className="setup-step-head">
-          <b>{vsEngine ? 3 : 2}</b>
+          <b>3</b>
           <div>
             <h3>规则与执子</h3>
-            <p>
-              <Term k="renju" />是正式赛制，黑棋受限；自由规则没有禁手，适合先熟悉棋盘。
-            </p>
           </div>
         </div>
 
@@ -223,72 +210,66 @@ export default function PlaySetup({ config, initialMode = 'agent' }) {
           </label>
         )}
 
-        {form.mode !== 'pvp' && (
-          <div className="setup-field">
-            <span className="setup-label">执子</span>
-            <div className="chips">
-              <button
-                type="button"
-                data-color="1"
-                className={`chip ${form.human_color === 1 ? 'is-active' : ''}`}
-                onClick={() => set({ human_color: 1 })}
-              >
-                执黑先行
-              </button>
-              <button
-                type="button"
-                data-color="2"
-                className={`chip ${form.human_color === 2 ? 'is-active' : ''}`}
-                onClick={() => set({ human_color: 2 })}
-              >
-                执白后行
-              </button>
-            </div>
+        <div className="setup-field">
+          <span className="setup-label">执子</span>
+          <div className="chips">
+            <button
+              type="button"
+              data-color="1"
+              className={`chip ${form.human_color === 1 ? 'is-active' : ''}`}
+              onClick={() => set({ human_color: 1 })}
+            >
+              执黑先行
+            </button>
+            <button
+              type="button"
+              data-color="2"
+              className={`chip ${form.human_color === 2 ? 'is-active' : ''}`}
+              onClick={() => set({ human_color: 2 })}
+            >
+              执白后行
+            </button>
           </div>
-        )}
+        </div>
       </section>
 
       <details className="setup-more">
         <summary>高级选项（模型决策、逐步确认）</summary>
         <div className="setup-more-body">
-          {form.mode !== 'pvp' && (
-            <label className={`toggle ${llmReady ? '' : 'is-disabled'}`}>
-              <input
-                type="checkbox"
-                data-setting="use_llm"
-                checked={Boolean(form.use_llm) && llmReady}
-                disabled={!llmReady}
-                onChange={(e) => set({ use_llm: e.target.checked })}
-              />
-              <span>
-                用模型做决策
-                <em>
-                  {llmReady
-                    ? `候选点交给 ${config.llm.model} 取舍；不勾选则用内置人格权重`
-                    : '未配置模型，使用内置策略人格'}
-                </em>
-              </span>
-            </label>
-          )}
+          <label className={`toggle ${llmReady ? '' : 'is-disabled'}`}>
+            <input
+              type="checkbox"
+              data-setting="use_llm"
+              checked={Boolean(form.use_llm) && llmReady}
+              disabled={!llmReady}
+              onChange={(e) => set({ use_llm: e.target.checked })}
+            />
+            <span>
+              用模型做决策
+              <em>
+                {llmReady
+                  ? `候选点交给 ${config.llm.model} 取舍；不勾选则用内置人格权重`
+                  : '未配置模型，使用内置策略人格'}
+              </em>
+            </span>
+          </label>
 
-          {form.mode !== 'pvp' && (
-            <label className="toggle">
-              <input
-                type="checkbox"
-                data-setting="step"
-                checked={Boolean(form.step)}
-                onChange={(e) => set({ step: e.target.checked })}
-              />
-              <span>
-                逐步确认
-                <em>
-                  {form.step
-                    ? 'Agent 计算完成后暂停，点「确认」再落子，便于逐步看懂它为什么这么走'
-                    : 'Agent 计算完成即落子，节奏更快'}
-                </em>
-              </span>
-            </label>
-          )}
+          <label className="toggle">
+            <input
+              type="checkbox"
+              data-setting="step"
+              checked={Boolean(form.step)}
+              onChange={(e) => set({ step: e.target.checked })}
+            />
+            <span>
+              逐步确认
+              <em>
+                {form.step
+                  ? 'Agent 计算完成后暂停，点「确认」再落子，便于逐步看懂它为什么这么走'
+                  : 'Agent 计算完成即落子，节奏更快'}
+              </em>
+            </span>
+          </label>
         </div>
       </details>
 

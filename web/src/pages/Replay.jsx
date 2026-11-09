@@ -2,13 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AnalysisPanel from '../components/AnalysisPanel'
 import Board from '../components/Board'
 import ExplainCard from '../components/ExplainCard'
-import { Term } from '../components/Glossary'
 import WinrateChart from '../components/WinrateChart'
 import { api } from '../lib/api'
 import { navigate } from '../lib/router'
 
 const RESULT_TEXT = { win: '胜', loss: '负', draw: '和', live: '进行中' }
-const MODE_TEXT = { agent: 'AI 对弈', learn: '学习', online: '在线', pvp: '双人', engine: '纯引擎' }
+const MODE_TEXT = { agent: 'AI 对弈', learn: '学习', engine: '纯引擎' }
 
 function stamp(seconds) {
   if (!seconds) return ''
@@ -42,10 +41,6 @@ function Library() {
       <section className="page-head">
         <div>
           <h2>复盘分析</h2>
-          <p>
-            所有对局逐手入库。点进任意一局，可以拖进度条回看，也可以切到「分析」页签看
-            胜率变化、候选点与每一手的解说。人机、在线与双人对局均在此列。
-          </p>
         </div>
         <span className="pill pill-quiet">{rows.length} 局</span>
       </section>
@@ -63,7 +58,7 @@ function Library() {
               <th>对手</th>
               <th>模式</th>
               <th>手数</th>
-              <th>分数</th>
+              <th>终局</th>
               <th>时间</th>
               <th />
             </tr>
@@ -79,11 +74,7 @@ function Library() {
                 <td className="replay-opponent">{row.opponent}</td>
                 <td className="dim">{MODE_TEXT[row.mode] ?? row.mode}</td>
                 <td className="mono">{row.moves}</td>
-                <td className={row.rating_delta > 0 ? 'up' : row.rating_delta < 0 ? 'down' : 'dim'}>
-                  {row.rating_delta == null
-                    ? '—'
-                    : `${row.rating_delta > 0 ? '+' : ''}${row.rating_delta}`}
-                </td>
+                <td className="dim replay-reason">{row.reason || '—'}</td>
                 <td className="dim">{stamp(row.at)}</td>
                 <td>
                   <button
@@ -358,9 +349,6 @@ function Player({ gameId }) {
                     humanColor={game.human_color ?? 1}
                     onPick={jumpTo}
                   />
-                  <p className="chart-hint">
-                    纵轴是<Term k="winrate">胜率</Term>。点曲线上的转折点，跳到那一手。
-                  </p>
                 </div>
               ) : (
                 <p className="empty-note">这局没有胜率数据。</p>

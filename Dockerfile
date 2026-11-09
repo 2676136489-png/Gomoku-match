@@ -12,10 +12,13 @@ RUN npm run build
 
 FROM python:3.13-slim AS runtime
 
+# 库、上传的棋谱、训练出来的权重表都落在 GOMOKU_DATA 下，
+# 挂一个卷就能把「这个实例学到的东西」整体搬走。
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PORT=8000 \
+    GOMOKU_DATA=/data \
     GOMOKU_DB=/data/gomoku.db \
     GOMOKU_LOG=INFO
 

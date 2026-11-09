@@ -65,8 +65,7 @@ def payload(game, *, with_series: bool = True) -> dict:
     playing = game.status == "playing"
     if playing:
         # 预测的是「对手下一步会落在哪」，不是「你自己会落在哪」。
-        # 非双人局里对手就是 Agent（人间隔一手轮到它），双人局只能预测轮到的那一方。
-        predictor = turn if game.mode == "pvp" else OPPONENT[human]
+        predictor = OPPONENT[human]
         prediction = insight.predict(game.pos, predictor)
         prediction["side"] = predictor
     else:

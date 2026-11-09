@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 /**
  * 极简 hash 路由。
  *
- * 这个应用只有六个页面，引 react-router 会让首屏多几十 KB 和一层 Provider，
+ * 这个应用只有七个页面，引 react-router 会让首屏多几十 KB 和一层 Provider，
  * 换来的是用不上的嵌套路由、loader、data API。hash 路由还有一个实际好处：
  * 静态托管不需要任何 rewrite 规则，刷新页面不会 404。
  */

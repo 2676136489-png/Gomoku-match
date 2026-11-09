@@ -8,10 +8,11 @@ services:
       - "8000:8000"
     environment:
       PORT: 8000
+      GOMOKU_DATA: /data
       GOMOKU_DB: /data/gomoku.db
       GOMOKU_LOG: INFO
     volumes:
-      # 账户、棋谱、天梯全在这个文件里。没有它，重启就是一次全部清空。
+      # 账户、对局、上传的棋谱、学出来的权重表全在这里。没有它，重启就是一次全部清空。
       - gomoku-data:/data
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/ready"]

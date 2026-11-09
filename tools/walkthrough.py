@@ -1,6 +1,7 @@
-"""六模块端到端走查：登录 → 大厅 → 教程 → 对弈 → 学习 → 代码工坊 → 竞技场。
+"""全站端到端走查：登录 → 大厅 → 教程 → 对弈 → 学习 → 代码工坊 → 竞技场 → 战绩。
 
-每一步都断言关键 DOM 存在，失败立即抛出并截图留证。
+每一步都断言关键 DOM 存在，失败立即记下并截图留证。
+服务与浏览器都由脚本自己起（临时库在 .tmp/），跑完自己关，不碰开发库。
 """
 from __future__ import annotations
 
@@ -14,8 +15,9 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "tools"))
-from cdp import Page  # noqa: E402
+sys.path.insert(0, str(ROOT))
+from tools.cdp import Page, ensure_browser  # noqa: E402
+from tools.harness import WALK_DB, ensure_server  # noqa: E402
 
 BASE = "http://127.0.0.1:8000"
 DOCS = ROOT / "docs"
@@ -80,6 +82,8 @@ def main():
     user = f"walk{suffix}"
     pw = "Walk12345"
 
+    server = ensure_server(WALK_DB)
+    browser = ensure_browser()
     p = Page.open(BASE + "/")
     p.send("Emulation.setDeviceMetricsOverride", width=1440, height=1000,
            deviceScaleFactor=1, mobile=False)
@@ -176,7 +180,9 @@ def main():
     check("提交设置后进到棋盘", "/play/" in (p.eval("location.hash") or ""), p.eval("location.hash"))
     check("出现棋盘 canvas", p.eval("!!document.querySelector('.board-canvas')"))
 
-    # 走一手：点棋盘中心
+    # 走一手。不能直接点画布中心：执白时 AI 已经占了天元，那一点是死的。
+    # 所以从局面快照里挑一个空点，坐标换算照抄 Board——pad 占边长 5.5%，
+    # step = (边长 − 2×pad) / 14，board 是长 225 的一维数组。
     rect = p.eval("""
       (() => {
         const c = document.querySelector('.board-canvas');
@@ -185,15 +191,31 @@ def main():
         return {x: r.x, y: r.y, w: r.width, h: r.height};
       })()
     """)
-    if rect:
-        cx = rect["x"] + rect["w"] / 2
-        cy = rect["y"] + rect["h"] / 2
+    spot = p.eval("""
+      (() => {
+        const g = window.__gomoku || {};
+        const board = g.board || [];
+        for (const [x, y] of [[7, 7], [7, 8], [8, 7], [6, 6], [8, 8], [7, 6], [6, 7]]) {
+          if (!board[y * 15 + x]) return [x, y];
+        }
+        return null;
+      })()
+    """)
+    if rect and spot:
+        pad = rect["w"] * 0.055
+        step = (rect["w"] - pad * 2) / 14
+        cx = rect["x"] + pad + spot[0] * step
+        cy = rect["y"] + pad + spot[1] * step
         for ev, extra in (("mousePressed", {"button": "left", "clickCount": 1}),
                           ("mouseReleased", {"button": "left", "clickCount": 1})):
             p.send("Input.dispatchMouseEvent", type=ev, x=cx, y=cy, **extra)
-        time.sleep(3.0)
+        # 一手要走「本地 → 服务端 → AI 应手」一个来回，点完立刻读还是 0
+        for _ in range(40):
+            if p.eval("(window.__gomoku && window.__gomoku.moves) ? window.__gomoku.moves.length : 0"):
+                break
+            time.sleep(0.25)
     moves = p.eval("(window.__gomoku && window.__gomoku.moves) ? window.__gomoku.moves.length : 0")
-    check("落子后有棋谱", bool(moves), f"{moves} 手")
+    check("落子后有棋谱", bool(moves), f"{moves} 手 / 点 {spot}")
     p.shot(str(SHOTS / "06-play-move.png"))
 
     # ---------------------------------------------------------------- 学习
@@ -391,16 +413,21 @@ def main():
           f"{st} {text[:120]}")
 
     # ---------------------------------------------------------------- 战绩
-    print("\n[8] 战绩与榜单")
+    print("\n[8] 战绩")
     st, me = api("/api/auth/me", token=token)
     user_obj = (me.get("user") or {}) if isinstance(me, dict) else {}
     check("me 返回战绩", st == 200 and "stats" in user_obj, json.dumps(me)[:140])
     check("战绩字段完整", {"games", "wins", "losses", "draws", "win_rate"} <= set(
         (user_obj.get("stats") or {}).keys()), str((user_obj.get("stats") or {}).keys()))
-    st, lb = api("/api/leaderboard", token=token)
-    check("榜单可用", st == 200, f"{st}")
+    history = user_obj.get("history") or []
+    check("最近对局带得出结果", all(item.get("result") in {"win", "loss", "draw"} for item in history),
+          str(history[:2]))
 
     p.close()
+    if browser is not None:
+        browser.terminate()
+    if server is not None:
+        server.terminate()
 
     print(f"\n{'='*48}\n通过 {ok} 项，失败 {len(fail)} 项")
     for f in fail:

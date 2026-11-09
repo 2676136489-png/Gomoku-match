@@ -33,20 +33,24 @@ export default function Tutorial() {
   return (
     <div className="tutorial">
       <aside className="tut-nav">
-        {data.chapters.map((c, i) => (
-          <button
-            key={c.id}
-            type="button"
-            className={`tut-nav-item ${c.id === chapter.id ? 'is-active' : ''}`}
-            onClick={() => setActive(c.id)}
-          >
-            <span className="tut-nav-index">{String(i + 1).padStart(2, '0')}</span>
-            <span>
-              <b>{c.title}</b>
-              <em>{c.summary}</em>
-            </span>
-          </button>
-        ))}
+        {/* 目录条目少，正文却很长。外层负责「sticky + 视口内垂直居中」，
+            内层才是列表本身——竖线跟着列表走，不跟着居中容器拉满。 */}
+        <div className="tut-nav-inner">
+          {data.chapters.map((c, i) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`tut-nav-item ${c.id === chapter.id ? 'is-active' : ''}`}
+              onClick={() => setActive(c.id)}
+            >
+              <span className="tut-nav-index">{String(i + 1).padStart(2, '0')}</span>
+              <span>
+                <b>{c.title}</b>
+                <em>{c.summary}</em>
+              </span>
+            </button>
+          ))}
+        </div>
       </aside>
 
       <article className="tut-body">

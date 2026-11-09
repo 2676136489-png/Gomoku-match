@@ -6,7 +6,7 @@ import time
 
 from fastapi import APIRouter, Request, Response
 
-from .. import db, elo, lab, tutorial
+from .. import db, lab, tutorial
 from ..gomoku import agent as agent_mod
 from ..gomoku import algorithms, net, rules
 from ..gomoku.llm import LLMConfig
@@ -103,12 +103,10 @@ def config() -> dict:
         "algorithms": algorithms.describe(),
         "capabilities": lab.capabilities(),
         "net": net.get_net().describe(),
-        "elo": elo.describe(),
         "modes": [
-            {"key": "agent", "label": "AI 对弈", "brief": "跟引擎 Agent 下棋，可选执黑或执白"},
-            {"key": "learn", "label": "学习模式", "brief": "每手给出教练点评：你形成了什么、对手威胁在哪"},
-            {"key": "pvp", "label": "双人对下", "brief": "同一个屏幕轮流落子"},
-            {"key": "engine", "label": "纯引擎", "brief": "关掉 Agent 层，只跑搜索"},
+            {"key": "agent", "label": "AI 对弈", "brief": "三档共用一套搜索算法；本档由大模型在候选落点中择一，模型未启用时算法自选。"},
+            {"key": "learn", "label": "学习模式", "brief": "对手决策与 AI 对弈相同，每手附一条按棋规生成的教练点评；点评不调用模型。"},
+            {"key": "engine", "label": "纯引擎", "brief": "仅由搜索算法决策，全程不调用模型、无点评；作为对照组。"},
         ],
     }
 
@@ -133,5 +131,4 @@ def system() -> dict:
         "database": db.info(),
         "games": counts,
         "accounts": accounts.count(),
-        "elo": elo.describe(),
     }

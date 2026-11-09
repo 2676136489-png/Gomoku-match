@@ -10,7 +10,7 @@
 
 这里有个明确的取舍：数据库是「记录」，内存是「状态」。写库失败时对局继续，
 只在日志里留一条——一盘正在下的棋不该因为磁盘抖动而中断，棋谱丢了比棋下不下去
-的损失小。真正需要强一致的是天梯分数，那个在对局结束时单独走事务。
+的损失小。真要强一致的是账户战绩，那个在对局结束时单独走事务。
 """
 
 from __future__ import annotations
@@ -45,12 +45,7 @@ class Game:
     step: bool = False
     owner: str | None = None
     owner_id: int | None = None
-    black_id: int | None = None
-    white_id: int | None = None
-    rated: bool = False
-    room_id: str | None = None
     recorded: bool = False
-    settled: bool = False
     pos: Position = field(default_factory=Position)
     moves: list[dict] = field(default_factory=list)
     status: str = "playing"
@@ -64,18 +59,8 @@ class Game:
     series_cache: list[dict] = field(default_factory=list)
     series_pos: Position | None = field(default=None, repr=False)
 
-    # 计时：只在联网对局里启用。clocks 是双方各自剩余的秒数，
-    # turn_started 是本回合开始的墙钟——剩余时间不落库，落库的是每手结算后的值。
-    clock_base: int = 0
-    clock_inc: int = 0
-    clocks: dict[int, float] = field(default_factory=dict)
-    turn_started: float | None = None
-
     def __post_init__(self) -> None:
         self.pos.rule = self.rule
-        if self.clock_base:
-            self.clocks = {BLACK: float(self.clock_base), WHITE: float(self.clock_base)}
-            self.turn_started = time.time()
 
     # ---------------------------------------------------------------- 基础
 
@@ -86,63 +71,6 @@ class Game:
     @property
     def rule_label(self) -> str:
         return "国际连珠" if self.rule == rules.RENJU else "自由规则"
-
-    @property
-    def timed(self) -> bool:
-        return self.clock_base > 0
-
-    def player_of(self, user_id: int | None) -> int | None:
-        if user_id is None:
-            return None
-        if self.black_id == user_id:
-            return BLACK
-        if self.white_id == user_id:
-            return WHITE
-        return None
-
-    # ---------------------------------------------------------------- 计时
-
-    def clock_snapshot(self) -> dict | None:
-        """双方剩余秒数 + 本回合已经用掉多少。前端画倒计时用这个。"""
-        if not self.timed:
-            return None
-        spent = (time.time() - self.turn_started) if self.turn_started else 0.0
-        live = dict(self.clocks)
-        live[self.turn] = max(0.0, live.get(self.turn, 0.0) - spent)
-        return {
-            "base": self.clock_base,
-            "inc": self.clock_inc,
-            "black": round(live.get(BLACK, 0.0), 1),
-            "white": round(live.get(WHITE, 0.0), 1),
-            "turn": self.turn,
-            "spent": round(spent, 1),
-        }
-
-    def _settle_clock(self, color: int) -> int:
-        """一手落完，扣掉本回合耗时、加上读秒。返回这一手用了多少毫秒。"""
-        if not self.timed or self.turn_started is None:
-            return 0
-        now = time.time()
-        spent = max(0.0, now - self.turn_started)
-        self.clocks[color] = max(0.0, self.clocks.get(color, 0.0) - spent) + self.clock_inc
-        self.turn_started = now
-        try:
-            repo.update_clocks(
-                self.id,
-                self.clocks.get(BLACK, 0.0),
-                self.clocks.get(WHITE, 0.0),
-                self.turn_started,
-            )
-        except Exception:
-            log.warning("计时写库失败 game=%s", self.id, exc_info=True)
-        return int(spent * 1000)
-
-    def flagged(self) -> int | None:
-        """谁超时了。轮次方读秒归零即判负。"""
-        if not self.timed or self.status != "playing" or self.turn_started is None:
-            return None
-        left = self.clocks.get(self.turn, 0.0) - (time.time() - self.turn_started)
-        return self.turn if left <= 0 else None
 
     # ---------------------------------------------------------------- 落子
 
@@ -157,9 +85,6 @@ class Game:
         ban: str | None = None,
         persist: bool = True,
     ) -> None:
-        if self.timed and color == self.turn and think_ms <= 0:
-            think_ms = self._settle_clock(color)
-
         self.pos.place(idx, color)
         x, y = coord(idx)
         entry = {
@@ -200,7 +125,6 @@ class Game:
             self.status = "finished"
             self.winner = OPPONENT[color]
             self.result_reason = f"黑棋{rules.BAN_LABELS[ban]}，判负"
-            self.turn_started = None
             return
 
         verdict = rules.judge(self.pos.board, idx, color, self.rule)
@@ -208,24 +132,11 @@ class Game:
             self.status = "finished"
             self.winner = verdict.winner
             self.result_reason = verdict.label
-            self.turn_started = None
             if verdict.line:
                 self.win_line = [[i % SIZE, i // SIZE] for i in verdict.line]
         elif self.pos.occupied == CELLS:
             self.status = "finished"
             self.result_reason = "棋盘已满，和棋"
-            self.turn_started = None
-
-    def resign(self, color: int) -> None:
-        self.status = "finished"
-        self.winner = OPPONENT[color]
-        self.result_reason = "认输"
-        self.turn_started = None
-
-    def abort(self) -> None:
-        self.status = "abandoned"
-        self.result_reason = self.result_reason or "对手离开"
-        self.turn_started = None
 
     def banned_points(self) -> list[dict]:
         """当前局面下黑棋的禁手点。只在轮到黑棋时算，其余时候返回空。"""
@@ -243,7 +154,6 @@ class Game:
 
     def snapshot(self) -> dict:
         last = self.moves[-1] if self.moves else None
-        seat = None
         return {
             "id": self.id,
             "mode": self.mode,
@@ -257,9 +167,6 @@ class Game:
             "rule_label": self.rule_label,
             "strict_ban": self.strict_ban,
             "step": self.step,
-            "rated": self.rated,
-            "room_id": self.room_id,
-            "seat": seat,
             "pending": (
                 {
                     "x": self.pending["x"],
@@ -283,7 +190,6 @@ class Game:
             "moves": self.moves,
             "last_move": {"x": last["x"], "y": last["y"]} if last else None,
             "occupied": self.pos.occupied,
-            "clock": self.clock_snapshot(),
             "created_at": self.created_at,
         }
 
@@ -309,12 +215,6 @@ class GameStore:
         step: bool = False,
         owner: str | None = None,
         owner_id: int | None = None,
-        black_id: int | None = None,
-        white_id: int | None = None,
-        rated: bool = False,
-        room_id: str | None = None,
-        clock_base: int = 0,
-        clock_inc: int = 0,
         status: str = "playing",
     ) -> Game:
         game = Game(
@@ -329,13 +229,7 @@ class GameStore:
             step=step,
             owner=owner,
             owner_id=owner_id,
-            black_id=black_id,
-            white_id=white_id,
-            rated=rated,
-            room_id=room_id,
             status=status,
-            clock_base=clock_base,
-            clock_inc=clock_inc,
         )
         try:
             repo.create_game(
@@ -343,8 +237,6 @@ class GameStore:
                     "id": game.id,
                     "mode": mode,
                     "owner_id": owner_id,
-                    "black_id": black_id,
-                    "white_id": white_id,
                     "difficulty": difficulty,
                     "persona": persona,
                     "human_color": human_color,
@@ -353,9 +245,6 @@ class GameStore:
                     "strict_ban": strict_ban,
                     "step": step,
                     "status": status,
-                    "rated": rated,
-                    "clock_base": clock_base,
-                    "clock_inc": clock_inc,
                     "created_at": game.created_at,
                 }
             )
@@ -397,22 +286,11 @@ class GameStore:
             strict_ban=bool(row["strict_ban"]),
             step=bool(row["step"]),
             owner_id=row["owner_id"],
-            black_id=row["black_id"],
-            white_id=row["white_id"],
-            rated=bool(row["rated"]),
             status=row["status"],
             winner=row["winner"],
             result_reason=row["result_reason"],
             created_at=row["created_at"],
-            clock_base=row["clock_base"] or 0,
-            clock_inc=row["clock_inc"] or 0,
         )
-        if row["clock_base"]:
-            game.clocks = {
-                BLACK: float(row["clock_black"] if row["clock_black"] is not None else row["clock_base"]),
-                WHITE: float(row["clock_white"] if row["clock_white"] is not None else row["clock_base"]),
-            }
-            game.turn_started = row["turn_started"] if row["status"] == "playing" else None
         for ply, move in enumerate(repo.moves_of(game_id)):
             game.pos.place(move["y"] * SIZE + move["x"], move["color"])
             game.moves.append(
@@ -449,8 +327,7 @@ class GameStore:
         self._remember(game)
         return game
 
-    def finish(self, game: Game, *, rated: bool = False, rating_before: float | None = None,
-               rating_after: float | None = None) -> None:
+    def finish(self, game: Game) -> None:
         try:
             repo.finish_game(
                 game.id,
@@ -458,9 +335,6 @@ class GameStore:
                 winner=game.winner,
                 reason=game.result_reason,
                 win_line=game.win_line,
-                rated=rated,
-                rating_before=rating_before,
-                rating_after=rating_after,
             )
         except Exception:
             log.warning("终局写库失败 game=%s", game.id, exc_info=True)

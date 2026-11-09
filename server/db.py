@@ -2,8 +2,8 @@
 
 为什么从「一个 JSON 文件」换成 SQLite：账户和战绩原来是整文件读改写，登录一次
 就要把 77 KB 的 JSON 重新序列化并原子替换，写放大与并发上限都锁在单进程内。
-现在有对局、房间、棋谱三张会持续增长的表，整文件方案直接失效——一盘 200 手的
-棋不可能为了记一手而重写整个库。
+现在有对局、棋谱两张会持续增长的表，整文件方案直接失效——一盘 200 手的棋
+不可能为了记一手而重写整个库。
 
 选型理由不是「SQLite 比 Postgres 好」，而是这个服务的部署形态只有单进程单端口：
 SQLite 是标准库，不起额外进程、不需要账号密码、不需要连接池，崩溃恢复靠 WAL
@@ -30,11 +30,13 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
+from . import paths
+
 ROOT = Path(__file__).resolve().parent.parent
 # 前端构建产物。目录名刻意不叫 dist：云端发布沙箱把 dist/build/out 当作构建输出
 # 从上传包里剔除，服务起来后只剩接口、没有页面（/api/ready 会报 frontend.ok=false）。
 WEB_DIST = ROOT / "web" / "site"
-DEFAULT_PATH = ROOT / "data" / "gomoku.db"
+DEFAULT_PATH = paths.DATA_DIR / "gomoku.db"
 
 _local = threading.local()
 _state = {
@@ -138,6 +140,32 @@ MIGRATIONS: list[str] = [
         created_at REAL    NOT NULL
     );
     CREATE INDEX idx_rooms_status ON rooms(status, created_at DESC);
+    """,
+    # --- v2: 清掉在线对战留下的表与列 ---
+    # v1 是照着「能开房间、能计等级分、能读秒」写的。这些功能后来整块删了，
+    # 代码里已经没有任何读路径，但列还留在库里：留着就会有下一个人照着它写
+    # 新逻辑，也会让 `SELECT *` 多背十个永远为空的字段。
+    # 按「已发布的迁移不许改」的规矩，这里不动 v1，补一条只往前走的 v2。
+    # 注意顺序：索引引用了要删的列，必须先掉索引，否则 DROP COLUMN 会被拒绝。
+    """
+    DROP INDEX IF EXISTS idx_games_black;
+    DROP INDEX IF EXISTS idx_games_white;
+
+    ALTER TABLE games DROP COLUMN black_id;
+    ALTER TABLE games DROP COLUMN white_id;
+    ALTER TABLE games DROP COLUMN rated;
+    ALTER TABLE games DROP COLUMN rating_before;
+    ALTER TABLE games DROP COLUMN rating_after;
+    ALTER TABLE games DROP COLUMN clock_base;
+    ALTER TABLE games DROP COLUMN clock_inc;
+    ALTER TABLE games DROP COLUMN clock_black;
+    ALTER TABLE games DROP COLUMN clock_white;
+    ALTER TABLE games DROP COLUMN turn_started;
+
+    ALTER TABLE users DROP COLUMN rating;
+    ALTER TABLE users DROP COLUMN rated_games;
+
+    DROP TABLE IF EXISTS rooms;
     """,
 ]
 

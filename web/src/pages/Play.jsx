@@ -141,7 +141,7 @@ export default function Play({ gameId, onUserChange }) {
     game &&
       game.status === 'playing' &&
       !game.pending &&
-      (game.mode === 'pvp' || game.turn === game.human_color),
+      game.turn === game.human_color,
   )
   const canAct = humanTurn && !busy
 
@@ -149,7 +149,6 @@ export default function Play({ gameId, onUserChange }) {
     if (!game) return { tone: 'idle', text: '准备中' }
     if (game.status === 'finished') {
       if (!game.winner) return { tone: 'idle', text: '和棋' }
-      if (game.mode === 'pvp') return { tone: 'done', text: game.winner === 1 ? '黑棋胜' : '白棋胜' }
       if (game.winner === game.human_color) return { tone: 'win', text: '你赢了' }
       return { tone: 'lose', text: game.ban_loss ? '禁手判负' : 'Agent 获胜' }
     }
@@ -324,10 +323,7 @@ export default function Play({ gameId, onUserChange }) {
     )
   }
 
-  const oppoLabel =
-    game.mode === 'pvp'
-      ? '同屏轮流'
-      : `${game.difficulty_label} · ${game.persona_label}`
+  const oppoLabel = `${game.difficulty_label} · ${game.persona_label}`
 
   return (
     <div className="play">
@@ -403,9 +399,7 @@ export default function Play({ gameId, onUserChange }) {
                 ? '对局结束'
                 : game.pending
                   ? '已计算完成，等待确认'
-                  : game.mode === 'pvp'
-                    ? '黑白轮换，点击棋盘落子'
-                    : '点击交叉点落子'}
+                  : '点击交叉点落子'}
             </span>
             {game.status === 'finished' && game.result_reason ? (
               <span className={`result-note ${game.ban_loss ? 'is-ban' : ''}`}>{game.result_reason}</span>
@@ -505,9 +499,6 @@ export default function Play({ gameId, onUserChange }) {
               <div className="panel-stack">
                 <div className="chart-block">
                   <WinrateChart series={series} humanColor={game.human_color ?? 1} onPick={explainPly} />
-                  <p className="chart-hint">
-                    纵轴是<Term k="winrate">胜率</Term>。点曲线上的转折点，跳到那一手。
-                  </p>
                 </div>
                 <AnalysisPanel
                   insight={insight}

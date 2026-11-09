@@ -6,19 +6,6 @@
    色标只有四样：墨（你）、淡墨（对手）、朱砂（警告与致胜）、石绿（改善）。
    ========================================================================== */
 
-.analysis-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
-}
-
-@media (max-width: 1120px) {
-  .analysis-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* ------------------------------------------------------------------ 页签 */
 
 .panel-analysis {

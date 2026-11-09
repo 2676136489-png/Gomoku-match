@@ -1,9 +1,9 @@
-"""存储层与等级分测试。不需要起服务，直接跑：
+"""存储层测试。不需要起服务，直接跑：
 
     python tests/test_storage.py
 
-覆盖迁移、事务回滚、会话过期、棋谱重放、悔棋回滚、等级分守恒、段位映射、
-旧数据导入的幂等性，以及「换个连接还能读到」这件事本身。
+覆盖迁移、会话过期、棋谱重放、悔棋回滚、战绩计数、旧数据导入的幂等性，
+以及「换个连接还能读到」这件事本身。
 """
 
 from __future__ import annotations
@@ -17,9 +17,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from server import db, elo, repo  # noqa: E402
+from server import db, repo  # noqa: E402
 from server.accounts import ITERATIONS, AccountStore, _hash_password, migrate_legacy_json  # noqa: E402
-from server.gomoku.position import BLACK, WHITE, coord  # noqa: E402
+from server.gomoku.position import BLACK, WHITE  # noqa: E402
 from server.store import GameStore  # noqa: E402
 
 PASS = 0
@@ -47,22 +47,32 @@ def fresh(path: Path) -> None:
 def test_schema(tmp: Path) -> None:
     print("\n--- 模式与迁移 ---")
     fresh(tmp / "schema.db")
-    check("新建库版本为 1", db.version() == 1, str(db.version()))
+    check("迁移跑到最新版本", db.version() == len(db.MIGRATIONS), f"{db.version()}/{len(db.MIGRATIONS)}")
 
     tables = {r["name"] for r in db.query("SELECT name FROM sqlite_master WHERE type='table'")}
-    for name in ("users", "sessions", "games", "moves", "rooms"):
+    for name in ("users", "sessions", "games", "moves"):
         check(f"表 {name} 存在", name in tables)
+    # v2 把房间表删了。这条不是洁癖：留着表就会有下一个人照着它写新逻辑。
+    check("房间表已随 v2 移除", "rooms" not in tables, str(sorted(tables)))
+
+    game_cols = {r["name"] for r in db.query("PRAGMA table_info(games)")}
+    for dead in ("black_id", "white_id", "rated", "clock_base", "clock_black", "turn_started"):
+        check(f"games.{dead} 已移除", dead not in game_cols)
+    user_cols = {r["name"] for r in db.query("PRAGMA table_info(users)")}
+    check("users.rating 已移除", "rating" not in user_cols)
 
     indexes = {r["name"] for r in db.query("SELECT name FROM sqlite_master WHERE type='index'")}
     check("会话按用户建了索引", any("sessions_user" in i for i in indexes))
-    check("对局按黑方建了索引", any("games_black" in i for i in indexes))
+    check("对局按建局人建了索引", any("games_owner" in i for i in indexes))
+    check("黑白方索引随列一起移除", not any("games_black" in i or "games_white" in i for i in indexes))
 
     # 二次连接不会重放迁移
     db.close_all()
     conn = db.connect()
-    check("重复连接不重复迁移", db.version() == 1)
+    check("重复连接不重复迁移", db.version() == len(db.MIGRATIONS))
     check("WAL 已开启", conn.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal")
     check("外键已开启", conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1)
+    check("外键没有悬空引用", db.query("PRAGMA foreign_key_check") == [])
 
 
 def test_tables(tmp: Path) -> None:
@@ -76,16 +86,20 @@ def test_tables(tmp: Path) -> None:
     repo.create_user("Alice", salt, "x", ITERATIONS)
     check("大小写视为同一个名字", repo.user_by_name("alice")["name"] == "Alice")
 
-    check("初始分是 1200", repo.user_by_id(user["id"])["rating"] == 1200.0)
+    stats = repo.user_by_id(user["id"])
+    check("新账户战绩全零", (stats["games"], stats["wins"], stats["losses"]) == (0, 0, 0), str(dict(stats)))
 
     repo.bump_stats(user["id"], "win")
     repo.bump_stats(user["id"], "win")
     stats = repo.user_by_id(user["id"])
     check("两连胜计数正确", stats["wins"] == 2 and stats["streak"] == 2)
+    check("总手数跟着涨", stats["games"] == 2)
     repo.bump_stats(user["id"], "loss")
     stats = repo.user_by_id(user["id"])
     check("输了清空连胜", stats["streak"] == 0)
     check("最长连胜被记住", stats["best_streak"] == 2)
+    repo.bump_stats(user["id"], "draw")
+    check("和棋单独计数", repo.user_by_id(user["id"])["draws"] == 1)
 
     digest = "d" * 64
     repo.create_session(user["id"], digest, time.time() + 60)
@@ -105,25 +119,20 @@ def test_tables(tmp: Path) -> None:
 def test_games(tmp: Path) -> None:
     print("\n--- 对局与棋谱 ---")
     fresh(tmp / "games.db")
-    a = repo.create_user("black", "00" * 16, "x", ITERATIONS)
-    b = repo.create_user("white", "00" * 16, "x", ITERATIONS)
+    a = repo.create_user("player", "00" * 16, "x", ITERATIONS)
 
     store = GameStore()
     game = store.create(
-        mode="online",
+        mode="agent",
         difficulty=3,
         persona="balanced",
         human_color=BLACK,
         use_llm=False,
-        black_id=a["id"],
-        white_id=b["id"],
         owner_id=a["id"],
-        rated=True,
-        clock_base=300,
-        clock_inc=5,
     )
     check("建局落库", repo.game_by_id(game.id) is not None)
     check("初始状态是进行中", game.status == "playing")
+    check("建局人记在库里", repo.game_by_id(game.id)["owner_id"] == a["id"])
 
     game.apply(7 * 15 + 7, BLACK)
     game.apply(8 * 15 + 8, WHITE)
@@ -140,7 +149,6 @@ def test_games(tmp: Path) -> None:
     check("重放后手数一致", loaded is not None and len(loaded.moves) == 2)
     check("重放后棋盘一致", loaded is not None and loaded.pos.board == game.pos.board)
     check("重放后轮到黑棋", loaded is not None and loaded.turn == BLACK)
-    check("重放后计时还在", loaded is not None and loaded.timed and loaded.clocks[BLACK] > 0)
 
     loaded.apply(6 * 15 + 6, BLACK)
     check("重放出来的局还能继续下", repo.moves_of(game.id)[-1]["x"] == 6)
@@ -158,72 +166,60 @@ def test_games(tmp: Path) -> None:
     again = GameStore().get(game.id)
     check("重启后终局状态保留", again is not None and again.status == "finished" and again.winner == BLACK)
 
-    check("按人查得到参与过的局", len(repo.games_of_user(a["id"])) == 1)
-    check("对手也能查到同一局", len(repo.games_of_user(b["id"])) == 1)
+    check("按人查得到自己的局", len(repo.games_of_user(a["id"])) == 1)
     stranger = repo.create_user("stranger", "00" * 16, "x", ITERATIONS)
     check("无关的人查不到", len(repo.games_of_user(stranger["id"])) == 0)
 
 
-def test_rooms(tmp: Path) -> None:
-    print("\n--- 房间 ---")
-    fresh(tmp / "rooms.db")
-    host = repo.create_user("host", "00" * 16, "x", ITERATIONS)
-    guest = repo.create_user("guest", "00" * 16, "x", ITERATIONS)
-    repo.create_room(
-        {"id": "r1", "code": "ABC234", "host_id": host["id"], "rule": "renju", "clock_base": 300, "clock_inc": 5}
+def test_settlement(tmp: Path) -> None:
+    print("\n--- 单人结算 ---")
+    from server import settlement
+    from server.runtime import store
+
+    fresh(tmp / "settle.db")
+    # fresh() 换了库位置，但单例还是同一个对象；库里没有数据，正好当新库用
+    accounts = AccountStore()
+    _, token = accounts.register("棋手甲", "gomoku-2026")
+    uid = accounts.resolve_id(token)
+
+    # 人执黑并赢：胜场 +1
+    game = store.create(
+        mode="agent", difficulty=3, persona="balanced", human_color=BLACK, use_llm=False,
+        owner_id=uid,
     )
-    room = repo.room_by_code("abc234")
-    check("房间码大小写不敏感", room is not None and room["id"] == "r1")
-    check("开房默认待加入", room["status"] == "open")
+    game.apply(7 * 15 + 7, BLACK)
+    game.apply(8 * 15 + 8, WHITE)
+    game.apply(8 * 15 + 7, BLACK)
+    game.winner = BLACK
+    game.status = "finished"
+    settlement.settle(game)
+    stats = accounts.public("棋手甲")["stats"]
+    check("赢一局记一胜", stats["wins"] == 1 and stats["games"] == 1, str(stats))
+    check("结算后标记已记账", game.recorded is True)
 
-    repo.update_room("r1", guest_id=guest["id"], status="playing")
-    check("加入后状态变更", repo.room_by_code("ABC234")["guest_id"] == guest["id"])
-    check("进行中的房间不进大厅", all(r["id"] != "r1" for r in repo.list_rooms("open")))
+    settlement.settle(game)
+    check("重复结算不重复记账", accounts.public("棋手甲")["stats"]["games"] == 1)
 
-    repo.update_room("r1", status="open", created_at=time.time() - 7200)
-    repo.reap_rooms(1800)
-    check("久无人进的房间被回收", repo.room_by_code("ABC234") is None)
+    # 人执白、黑胜：这一局是负
+    loss = store.create(
+        mode="agent", difficulty=3, persona="balanced", human_color=WHITE, use_llm=False,
+        owner_id=uid,
+    )
+    loss.winner = BLACK
+    loss.status = "finished"
+    settlement.settle(loss)
+    stats = accounts.public("棋手甲")["stats"]
+    check("执白被判负", stats["losses"] == 1, str(stats))
+    check("最近对局记成负", accounts.public("棋手甲")["history"][0]["result"] == "loss")
 
-
-def test_elo() -> None:
-    print("\n--- 等级分 ---")
-    check("同分期望胜率 0.5", abs(elo.expected(1200, 1200) - 0.5) < 1e-9)
-    check("高 400 分期望约 0.909", abs(elo.expected(1600, 1200) - 0.909) < 0.002)
-    check("期望胜率互补", abs(elo.expected(1000, 1500) + elo.expected(1500, 1000) - 1.0) < 1e-9)
-
-    check("新人 K=40", elo.k_factor(0) == 40.0)
-    check("15 盘后 K=24", elo.k_factor(15) == 24.0)
-    check("60 盘后 K=16", elo.k_factor(60) == 16.0)
-
-    a, b, delta = elo.settle(1200, 1200, 1.0)
-    check("同分赢一局涨 20", a == 1220.0, str(a))
-    check("对手掉同样的分", b == 1180.0, str(b))
-    check("分差对冲为零", abs((a - 1200) + (b - 1200)) < 1e-9)
-    check("返回的变化量与差值一致", abs(delta - 20.0) < 1e-9)
-
-    a, b, _ = elo.settle(1200, 1200, 0.5)
-    check("和棋不涨不跌", a == 1200.0 and b == 1200.0)
-
-    a, b, _ = elo.settle(1200, 2000, 1.0)
-    check("爆冷赢得更多", a - 1200 > 30, str(a))
-    a, b, _ = elo.settle(2000, 1200, 1.0)
-    check("碾压赢得很少", a - 2000 < 5, str(a))
-
-    a, _, _ = elo.settle(elo.FLOOR + 5, 2400, 0.0)
-    check("分数有下限", a >= elo.FLOOR, str(a))
-
-    a, b, _ = elo.settle(1200, 1200, 1.0, games_a=0, games_b=200)
-    check("一方 K 大时涨跌仍对称", abs((a - 1200) + (b - 1200)) < 1e-9)
-
-    check("1200 是一级", elo.tier(1200)["label"] == "一级")
-    check("1350 是初段", elo.tier(1350)["label"] == "初段")
-    check("2400 是名人", elo.tier(2400)["label"] == "名人")
-    check("段位随分数单调", all(
-        elo.tier(r)["label"] != elo.tier(r + 400)["label"] for r in (1300, 1700, 2000)
-    ))
-    t = elo.tier(1400)
-    check("进度在 0 到 1 之间", 0 <= t["progress"] <= 1, str(t["progress"]))
-    check("下一段门槛高于当前分", t["next"] > 1400, str(t["next"]))
+    # 无主局（引擎对局）只写终局状态，不记账
+    anon = store.create(
+        mode="engine", difficulty=3, persona="balanced", human_color=BLACK, use_llm=False,
+    )
+    anon.status = "finished"
+    settlement.settle(anon)
+    check("无主局不记账", accounts.public("棋手甲")["stats"]["games"] == 2)
+    check("无主局也落终局状态", repo.game_by_id(anon.id)["status"] == "finished")
 
 
 def test_accounts(tmp: Path) -> None:
@@ -232,7 +228,7 @@ def test_accounts(tmp: Path) -> None:
     store = AccountStore()
     user, token = store.register("棋手甲", "gomoku-2026")
     check("注册返回账户", user["name"] == "棋手甲")
-    check("注册即带段位", user["stats"]["tier"]["label"] == "一级")
+    check("注册即带战绩", user["stats"]["games"] == 0)
     check("返回 token", len(token) > 20)
 
     check("token 能解析出人", store.resolve(token) == "棋手甲")
@@ -248,7 +244,7 @@ def test_accounts(tmp: Path) -> None:
     try:
         store.register("x", "123")
         check("弱用户名被拒", False)
-    except Exception as exc:
+    except Exception:
         check("弱用户名被拒", True)
 
     dump = json.dumps([dict(row) for row in db.query("SELECT * FROM users")])
@@ -258,7 +254,7 @@ def test_accounts(tmp: Path) -> None:
     check("改密码后旧 token 失效", store.resolve(token) is None)
     check("新 token 可用", store.resolve(new_token) == "棋手甲")
 
-    store.record("棋手甲", mode="agent", result="win", moves=30, opponent="困难")
+    store.record("棋手甲", result="win")
     pub = store.public("棋手甲")
     check("战绩计入", pub["stats"]["wins"] == 1)
     check("胜率算对", pub["stats"]["win_rate"] == 1.0)
@@ -319,8 +315,7 @@ def main() -> None:
             test_schema(tmp)
             test_tables(tmp)
             test_games(tmp)
-            test_rooms(tmp)
-            test_elo()
+            test_settlement(tmp)
             test_accounts(tmp)
             test_legacy(tmp)
         finally:

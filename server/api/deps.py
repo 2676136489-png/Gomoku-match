@@ -64,12 +64,14 @@ def require_game(game_id: str, user: dict) -> Game:
     上一版对局只活在内存里、活不过重启，所以「知道 id 就能读」看起来没什么损失。
     现在棋谱会落库并长期保留，缺了这一步，任何人拿到 id 就能读别人的棋谱和
     对局过程中的分析。所以归属校验不是可选项。
+
+    只有一条归属关系：建局的人。真人房没了之后不存在「两个棋手各占一边」，
+    所以这里比对 owner_id 一个字段就够，不需要再查黑白席位。
     """
     game = accounts_game(game_id)
     if game is None:
         raise HTTPException(404, "对局不存在")
-    owners = {game.owner_id, game.black_id, game.white_id}
-    if user["id"] not in owners:
+    if game.owner_id != user["id"]:
         raise HTTPException(403, "无权访问该对局")
     return game
 

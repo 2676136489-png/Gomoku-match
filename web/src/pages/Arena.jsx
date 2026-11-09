@@ -130,10 +130,6 @@ export default function Arena({ config }) {
       <header className="page-head">
         <div>
           <h2>算法竞技场</h2>
-          <p>
-            四路算法互相对打。同一副规则、同一套禁手判定，唯一的变量是「用什么办法挑点」。
-            想看清搜索值多少棋力，就看贪心对搜索的比分。
-          </p>
         </div>
         <div className="arena-presets">
           {PRESETS.map((p) => (
@@ -203,11 +199,6 @@ export default function Arena({ config }) {
             )}
           </div>
 
-          <p className="arena-hint">
-            双方均为确定性算法，相同开局必然得到相同棋局。因此第一手由服务端随机落子（
-            <b>越靠近中心概率越高</b>），第二手起交由算法处理，每次开局互不相同。
-          </p>
-
           {Object.keys(tally).length > 0 && (
             <div className="arena-tally">
               <span className="coach-label">本次会话战绩</span>
@@ -222,9 +213,6 @@ export default function Arena({ config }) {
             </div>
           )}
 
-          {meta('neural')?.ready === false && (
-            <p className="arena-warn">神经网络权重尚未训练，选择该算法会直接报错。请先执行 tools/train_net.py。</p>
-          )}
         </section>
 
         <section className="arena-play">

@@ -4,14 +4,13 @@ import { navigate, useRoute } from './lib/router'
 import Arena from './pages/Arena'
 import Code from './pages/Code'
 import ErrorBoundary from './components/ErrorBoundary'
+import Greedy from './pages/Greedy'
 import Hub from './pages/Hub'
 import Landscape from './components/Landscape'
 import Login from './pages/Login'
-import Online from './pages/Online'
 import Play from './pages/Play'
 import PlaySetup from './pages/PlaySetup'
 import Replay from './pages/Replay'
-import Room from './pages/Room'
 import Tutorial from './pages/Tutorial'
 
 /**
@@ -23,22 +22,20 @@ const NAV = [
   {
     group: '对弈',
     items: [
-      { path: '/online', label: '在线', hint: '和真人下，结果计入天梯' },
       { path: '/play', label: '人机', hint: '和引擎下，可选难度与风格' },
+      { path: '/tutorial', label: '教程', hint: '从规则讲到禁手' },
     ],
   },
   {
     group: '学习',
-    items: [
-      { path: '/replay', label: '复盘', hint: '逐手回看胜率与解说' },
-      { path: '/tutorial', label: '教程', hint: '从规则讲到禁手' },
-    ],
+    items: [{ path: '/replay', label: '复盘', hint: '逐手回看胜率与解说' }],
   },
   {
     group: '实验室',
     items: [
       { path: '/code', label: '代码', hint: '写自己的 choose_move' },
-      { path: '/arena', label: '竞技场', hint: '四种算法互相对打' },
+      { path: '/arena', label: '竞技场', hint: '五种算法互相对打' },
+      { path: '/greedy', label: '贪心学习', hint: '喂棋谱，训一张估值表' },
     ],
   },
 ]
@@ -105,7 +102,7 @@ export default function App() {
     )
   }
 
-  // 带参数的页面自己解析第二段：/room/abc123、/replay/abc123、/play/abc123。
+  // 带参数的页面自己解析第二段：/replay/abc123、/play/abc123。
   const segments = route.segments ?? []
   const root = `/${segments[0] ?? ''}`
   const param = segments[1]
@@ -114,8 +111,7 @@ export default function App() {
   const isActive = (target) => path === target || path.startsWith(`${target}/`)
 
   const render = () => {
-    if (path === '/hub') return <Hub user={user} config={config} onNavigate={navigate} />
-    if (path === '/online') return <Online user={user} />
+    if (path === '/hub') return <Hub user={user} onNavigate={navigate} />
     if (path === '/play') {
       if (param) return <Play key={param} gameId={param} onUserChange={refreshUser} />
       return <PlaySetup key={`setup-${modeParam}`} config={config} initialMode={modeParam} />
@@ -123,11 +119,10 @@ export default function App() {
     // 旧链接 /learn 仍然可用，进的是准备页并预选学习模式
     if (path === '/learn') return <PlaySetup key="setup-learn" config={config} initialMode="learn" />
     if (path === '/tutorial') return <Tutorial />
+    if (path === '/greedy') return <Greedy />
     if (path === '/code') return <Code config={config} />
     if (path === '/arena') return <Arena config={config} />
     if (path === '/replay') return <Replay key={param ?? 'list'} gameId={param} />
-    if (path === '/room')
-      return <Room key={param ?? 'room'} gameId={param} user={user} />
     return (
       <div className="notfound">
         <h2>页面不存在</h2>
@@ -148,7 +143,7 @@ export default function App() {
             <span className="brand-mark" />
             <div>
               <h1>Gomoku Match</h1>
-              <p>国际连珠 · 棋形评估 + 搜索 + 学习型落点网络</p>
+              <p>国际连珠 · 棋形评估 + 搜索 + 可从棋谱训练的估值表</p>
             </div>
           </div>
 
@@ -179,14 +174,9 @@ export default function App() {
           </nav>
 
           <div className="topbar-meta">
-            <button
-              type="button"
-              className="pill pill-rating"
-              onClick={() => navigate('/online')}
-              title={user.stats?.tier?.label}
-            >
-              {user.stats?.tier?.label ?? '一级'} · {Math.round(user.stats?.rating ?? 1200)}
-            </button>
+            <span className="pill pill-record" title="人机对局累计战绩">
+              {user.stats?.games ?? 0} 局 · 胜率 {Math.round((user.stats?.win_rate ?? 0) * 100)}%
+            </span>
             <span className="pill pill-user">{user.name}</span>
             <button type="button" className="pill pill-quiet" onClick={logout}>
               退出
@@ -198,7 +188,6 @@ export default function App() {
 
         <footer className="foot">
           <span>
-            引擎与 Agent 同源：先算候选，再在候选里做决策。
             <a href="/api/docs" target="_blank" rel="noreferrer">
               API
             </a>
