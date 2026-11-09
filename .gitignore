@@ -22,5 +22,10 @@ data/
 .idea/
 .vscode/
 
+# 个人面试材料：面试稿、拷打题库与相关 PDF，一律不入库
+docs/interview/
+面试*.pdf
+*.pdf
+
 # 云平台发布的应用标记
 *.genie
