@@ -157,6 +157,39 @@ const BIRDS = [
   { d: 'M0,0 q6,-6 12,0 q6,-6 12,0', x: 800, y: 154, s: 0.66 },
 ]
 
+/**
+ * 近景墨竹：右下压角的三竿。远山是「远景」，竹是「近景」，两层的墨色要拉开，
+ * 但竹仍然压得很淡，免得抢了山。竹竿略弯、带节，叶是披针形一笔撇出去。
+ * 这一组不套山脊的位移滤镜——毛边给山石用，竹叶要的是干净的笔锋。
+ */
+const BAMBOO_CULMS = [
+  {
+    d: 'M1246,460 Q1258,352 1274,242 Q1278,212 1282,190',
+    w: 4.6,
+    joints: [[1252, 398], [1258, 330], [1266, 272], [1275, 222]],
+  },
+  {
+    d: 'M1316,460 Q1324,368 1336,282 Q1340,256 1343,236',
+    w: 3.4,
+    joints: [[1320, 402], [1326, 340], [1333, 292]],
+  },
+  {
+    d: 'M1378,460 Q1382,392 1389,320',
+    w: 2.6,
+    joints: [[1380, 414], [1385, 368]],
+  },
+]
+
+// 竹叶按「组」出，三片从一个枝点撇开（写竹的个字/介字点法），不是沿竿排队。
+// 每片细长带弯，透明度压到三成上下——背景里的近景，不能盖过正文。
+const BAMBOO_SPRAYS = [
+  { x: 1280, y: 214, dir: 1, leaves: [[-56, 1.0, 0.44], [-22, 0.84, 0.4], [16, 0.7, 0.36]] },
+  { x: 1268, y: 272, dir: -1, leaves: [[-48, 0.92, 0.42], [-14, 0.78, 0.38], [24, 0.66, 0.34]] },
+  { x: 1338, y: 258, dir: 1, leaves: [[-52, 0.9, 0.42], [-18, 0.76, 0.38], [20, 0.64, 0.34]] },
+  { x: 1328, y: 320, dir: -1, leaves: [[-42, 0.84, 0.4], [-8, 0.72, 0.36], [28, 0.6, 0.32]] },
+  { x: 1386, y: 330, dir: 1, leaves: [[-48, 0.8, 0.4], [-16, 0.68, 0.36], [18, 0.58, 0.32]] },
+]
+
 export default function Landscape() {
   return (
     <div className="landscape" aria-hidden="true">
@@ -242,6 +275,35 @@ export default function Landscape() {
             <path className="bird" d={b.d} />
           </g>
         ))}
+
+        <g className="bamboo">
+          {BAMBOO_CULMS.map((c, i) => (
+            <g key={i}>
+              <path className="bamboo-culm" d={c.d} strokeWidth={c.w} />
+              {c.joints.map(([x, y], j) => (
+                <path
+                  key={j}
+                  className="bamboo-joint"
+                  d={`M${x - c.w},${y} h${(c.w * 2).toFixed(1)}`}
+                  strokeWidth={(c.w * 0.7).toFixed(1)}
+                />
+              ))}
+            </g>
+          ))}
+          {BAMBOO_SPRAYS.map((g, gi) => (
+            <g key={gi} transform={`translate(${g.x} ${g.y})`}>
+              {g.leaves.map(([deg, sc, op], li) => (
+                <path
+                  key={li}
+                  className="bamboo-leaf"
+                  d="M0,0 C14,-1 30,-7 46,-12 C32,-2 16,3 0,0 Z"
+                  transform={`scale(${g.dir},1) rotate(${deg}) scale(${sc})`}
+                  opacity={op}
+                />
+              ))}
+            </g>
+          ))}
+        </g>
       </svg>
     </div>
   )

@@ -13,6 +13,7 @@ const PRIMARY = [
   {
     path: '/play',
     index: '01',
+    seal: '弈',
     title: '人机对弈',
     tag: '与引擎',
     desc: '和引擎下。可选强度、风格与执子，对局中可悔棋、提示、复盘。',
@@ -20,6 +21,7 @@ const PRIMARY = [
   {
     path: '/play?mode=learn',
     index: '02',
+    seal: '学',
     title: '学习模式',
     tag: '教练点评',
     desc: '同样的对局，每一手都有评语：形成了什么棋形、对手的活三拦没拦住。',
@@ -27,6 +29,7 @@ const PRIMARY = [
   {
     path: '/replay',
     index: '03',
+    seal: '谱',
     title: '复盘分析',
     tag: '逐手回看',
     desc: '把下过的棋逐手翻出来看：胜率怎么变、关键手是什么、当时还有哪些选择。',
@@ -34,6 +37,7 @@ const PRIMARY = [
   {
     path: '/greedy',
     index: '04',
+    seal: '算',
     title: '贪心学习',
     tag: '喂棋谱',
     desc: '把棋谱喂给贪心，看那张手写的分值表被改成什么样。可上传自己的棋谱。',
@@ -54,7 +58,7 @@ const SECONDARY = [
   {
     path: '/tutorial',
     title: '新手教程',
-    desc: '从规则与胜负讲到三种禁手，每节配一副可交互棋盘。第一次接触连珠建议先看这里。',
+    desc: '从棋规、棋形讲到禁手与开局规则，每节配一副可交互棋盘。第一次接触连珠建议先看这里。',
   },
 ]
 
@@ -116,7 +120,7 @@ export default function Hub({ user, onNavigate }) {
         title="第一次来，从这里开始"
         steps={[
           '想直接下棋就点「人机对弈」，不用等人。',
-          '规则还没搞清楚就先看「新手教程」，四章带可交互棋盘。',
+          '规则还没搞清楚就先看「新手教程」，六章带可交互棋盘。',
           '好奇算法怎么选点，去「贪心学习」喂一盘棋谱，看分值表怎么被改。',
         ]}
       />
@@ -131,6 +135,7 @@ export default function Hub({ user, onNavigate }) {
             </div>
             <p>{m.desc}</p>
             <span className="module-go">进入 →</span>
+            <span className="module-seal" aria-hidden="true">{m.seal}</span>
           </button>
         ))}
       </section>

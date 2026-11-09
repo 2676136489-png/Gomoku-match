@@ -167,10 +167,41 @@ body {
   opacity: 0.52;
 }
 
+/* 近景墨竹：压角用，比远山重一档但仍留着淡墨。叶片透明度逐片写在 JSX 上，
+   这里只给 fill，别在 CSS 里写 opacity，会把逐片的值覆盖掉。 */
+.landscape .bamboo-culm {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-linecap: round;
+  opacity: 0.4;
+}
+
+.landscape .bamboo-joint {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-linecap: round;
+  opacity: 0.46;
+}
+
+.landscape .bamboo-leaf {
+  fill: var(--ink-1);
+}
+
+/* 一键回退本轮新增装饰：给 body 加 .ink-off 即可，不动任何山水令牌 */
+body.ink-off .landscape .bamboo,
+body.ink-off .module-seal {
+  display: none;
+}
+
 @media (max-width: 760px) {
   .landscape {
     height: 30vh;
     min-height: 180px;
+  }
+
+  /* 窄屏 slice 会把右侧压角的竹裁掉半截，不如整组收起 */
+  .landscape .bamboo {
+    display: none;
   }
 }
 

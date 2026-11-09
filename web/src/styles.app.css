@@ -388,6 +388,26 @@
   color: var(--seal-deep);
 }
 
+/* 闲章：一小方朱砂压在册页右下角，和左下的「进入」收成一对角。
+   只做点缀，不进文字层级；绝对定位所以不占布局。 */
+.module-seal {
+  position: absolute;
+  right: 18px;
+  bottom: 17px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 2px;
+  background: var(--seal);
+  color: var(--paper-hi);
+  font-family: var(--font-song);
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.82;
+  pointer-events: none;
+}
+
 .hub-lower {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -520,7 +540,16 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding-right: 4px;
+  padding: 12px 4px 12px 8px;
+  /* 目录滚动到深色近山时浅字读不出来。纸底上下淡出、不落硬边，
+     保住「悬空批注」而不是贴一块白板。 */
+  background: linear-gradient(
+    180deg,
+    rgba(247, 248, 244, 0) 0%,
+    rgba(247, 248, 244, 0.72) 12%,
+    rgba(247, 248, 244, 0.72) 88%,
+    rgba(247, 248, 244, 0) 100%
+  );
   border-right: 1px solid var(--rule);
 }
 
@@ -554,7 +583,7 @@
   font-size: 12px;
   line-height: 1.9;
   letter-spacing: 0.1em;
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .tut-nav-item.is-active .tut-nav-index {
@@ -576,7 +605,7 @@
   font-style: normal;
   font-size: 11.5px;
   line-height: 1.6;
-  color: var(--ink-4);
+  color: var(--ink-2);
 }
 
 .tut-body {
