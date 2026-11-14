@@ -35,6 +35,9 @@ NAME_RE = re.compile(r"^[A-Za-z0-9_\u4e00-\u9fa5]{2,20}$")
 
 MAX_FAILS = 8
 FAIL_WINDOW = 300.0
+# 失败计数按用户名存。用户名来自外部输入，给字典一个上限，避免有人拿随机
+# 名字把内存撑大；超过上限时按插入顺序淘汰最老的一项。
+MAX_FAIL_KEYS = 4096
 
 MODE_LABELS = {"agent": "AI 对弈", "learn": "学习模式", "engine": "纯引擎"}
 
@@ -109,8 +112,9 @@ class AccountStore:
         iterations = user["iterations"] if user else ITERATIONS
         digest = _hash_password(password, salt, iterations)
         if user is None or not hmac.compare_digest(digest, user["hash"]):
-            if user is not None:
-                self._note_fail(name)
+            # 不存在的用户名也要计数，否则攻击者可以绕开按用户名的限流；
+            # 实际存在的用户仍然走同一套失败窗口。
+            self._note_fail(name)
             raise AuthError("用户名或密码不正确", 401)
 
         with self._lock:
@@ -166,13 +170,20 @@ class AccountStore:
         now = _now()
         with self._lock:
             hits = [t for t in self._fails.get(name, []) if now - t < FAIL_WINDOW]
-            self._fails[name] = hits
+            # 不要在这里给每个请求都建 key：用户名来自外部输入，随机名字会
+            # 把字典撑大。只有真正失败过的名字才由 _note_fail 建 key。
+            if hits:
+                self._fails[name] = hits
+            else:
+                self._fails.pop(name, None)
             blocked = len(hits) >= MAX_FAILS
         if blocked:
             raise AuthError("尝试次数过多，请五分钟后再试", 429)
 
     def _note_fail(self, name: str) -> None:
         with self._lock:
+            if name not in self._fails and len(self._fails) >= MAX_FAIL_KEYS:
+                self._fails.pop(next(iter(self._fails)), None)
             self._fails.setdefault(name, []).append(_now())
 
     # ---------------------------------------------------------------- 战绩

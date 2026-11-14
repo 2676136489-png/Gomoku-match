@@ -202,6 +202,10 @@ def undo(game_id: str, request: Request) -> dict:
     user = require_user(request)
     game = require_game(game_id, user)
     with game.lock:
+        # 终局已经结算过，悔棋会把 recorded 重置后再记一次战绩。
+        # 想重下就开新局；这里直接把口子关掉。
+        if game.status != "playing":
+            raise HTTPException(409, "对局已结束，不能悔棋")
         if game.pending is not None and not game.moves:
             game.pending = None
             return {"game": game.snapshot(), "agent": None}

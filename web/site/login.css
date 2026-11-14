@@ -1,0 +1,96 @@
+/* login.html 专属样式：落地页（styles.css）同款的视频背景 + 居中玻璃卡。
+   这里只做覆盖——表单、页签、按钮的底子仍是 app.css 的深色组件，
+   登录页只有一张卡，app.css 的两栏布局改成居中单栏。 */
+
+.bg {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: -1;
+}
+
+.bg-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* 登录页只有一张居中卡片，视频可以亮着当主角；内页（app.css）压得更暗，
+     那边满地都是小字 */
+  filter: brightness(0.92) saturate(1.12);
+}
+
+/* 视频上压一层暗角，卡片和文字才立得住；跟首页 hero 的处理一致 */
+.bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 50% 42%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.auth {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(20px, 4vh, 48px) 18px;
+}
+
+.auth-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: min(400px, 100%);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0;
+  text-decoration: none;
+}
+
+.auth-wordmark {
+  color: #fff;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  /* 视频亮部会顶到字下面，给一层很淡的投影把字托出来 */
+  text-shadow: 0 1px 16px rgba(0, 0, 0, 0.55);
+}
+
+.auth-card {
+  width: 100%;
+  background: rgba(13, 13, 15, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 26px 24px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+}
+
+.auth-tabs {
+  background: rgba(40, 40, 42, 0.85);
+}
+
+.auth-card .input {
+  background: rgba(40, 40, 42, 0.9);
+}
+
+.auth-tagline {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  /* 这行落在卡片外面的视频上，不托一层就跟着亮部一起糊掉了 */
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-video {
+    display: none;
+  }
+  .bg {
+    background: #000;
+  }
+}

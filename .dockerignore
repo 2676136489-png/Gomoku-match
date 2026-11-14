@@ -2,6 +2,8 @@
 .gitignore
 .github
 .venv
+.workbuddy
+.pytest_cache
 __pycache__
 **/__pycache__
 *.pyc
@@ -11,7 +13,6 @@ docs
 tests
 tools
 web/node_modules
-web/dist
 .env
 .env.*
 !.env.example

@@ -4,9 +4,8 @@ __pycache__/
 .venv/
 .pytest_cache/
 
-# 前端
+# 前端：web/site 是线上静态站源码，不再当构建产物忽略
 node_modules/
-web/site/
 
 # 本地
 .tmp/

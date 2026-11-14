@@ -1,7 +1,8 @@
-"""全站端到端走查：登录 → 大厅 → 教程 → 对弈 → 学习 → 代码工坊 → 竞技场 → 战绩。
+"""全站端到端走查：大厅 → 登录 → 对弈 → 学习 → 代码工坊 → 竞技场 → 战绩。
 
 每一步都断言关键 DOM 存在，失败立即记下并截图留证。
-服务与浏览器都由脚本自己起（临时库在 .tmp/），跑完自己关，不碰开发库。
+前端是静态多页：大厅（index.html）是公开的视频落地页，功能页都要先登录。
+服务与浏览器都由脚本自己起（一次性库在 .tmp/），跑完自己关，不碰开发库。
 """
 from __future__ import annotations
 
@@ -17,9 +18,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tools.cdp import Page, ensure_browser  # noqa: E402
-from tools.harness import WALK_DB, ensure_server  # noqa: E402
+from tools.harness import BASE, WALK_DB, ensure_server  # noqa: E402
 
-BASE = "http://127.0.0.1:8000"
 DOCS = ROOT / "docs"
 SHOTS = ROOT / "docs" / "walk"
 
@@ -76,6 +76,59 @@ def api(path: str, body=None, token=None, raw: bool = False):
         return e.code, (payload if raw else json.loads(payload))
 
 
+def pick_empty_spot(p):
+    """从局面快照里挑一个空点：AI 的开局手有随机性，写死坐标会撞上它。"""
+    return p.eval("""
+      (() => {
+        const g = window.__gomoku || {};
+        const board = g.board || [];
+        for (const [x, y] of [[8, 8], [7, 8], [8, 7], [6, 6], [8, 6], [6, 8], [7, 6], [6, 7]]) {
+          if (!board[y * 15 + x]) return [x, y];
+        }
+        return null;
+      })()
+    """)
+
+
+def click_board(p, spot):
+    """棋盘是 canvas，只能按坐标派发鼠标事件。几何参数和 app.js 的 GomokuBoard 一致。"""
+    x, y = spot
+    p.eval(f"""
+      (() => {{
+        const c = document.querySelector('.board-canvas');
+        if (!c) return false;
+        const r = c.getBoundingClientRect();
+        const pad = r.width * 0.055;
+        const step = (r.width - pad * 2) / 14;
+        c.dispatchEvent(new MouseEvent('click', {{
+          clientX: r.left + pad + {x} * step, clientY: r.top + pad + {y} * step, bubbles: true}}));
+        return true;
+      }})()
+    """)
+
+
+def wait_moves(p, minimum: int, timeout_s: float):
+    for _ in range(int(timeout_s / 0.25)):
+        n = p.eval("(window.__gomoku && window.__gomoku.moves) ? window.__gomoku.moves.length : 0")
+        if n >= minimum:
+            return n
+        time.sleep(0.25)
+    return p.eval("(window.__gomoku && window.__gomoku.moves) ? window.__gomoku.moves.length : 0")
+
+
+def start_game(p, mode_selector: str | None = None):
+    """在准备页（可选对手模式）提交设置，等跳到对局页。"""
+    if mode_selector:
+        p.eval(f"document.querySelector('{mode_selector}').click()")
+        time.sleep(0.3)
+    p.eval("document.querySelector('.setup-foot .btn-primary').click()")
+    for _ in range(20):
+        time.sleep(0.5)
+        if "game=" in (p.eval("location.search") or ""):
+            break
+    time.sleep(1.5)
+
+
 def main():
     SHOTS.mkdir(parents=True, exist_ok=True)
     suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=6))
@@ -85,349 +138,298 @@ def main():
     server = ensure_server(WALK_DB)
     browser = ensure_browser()
     p = Page.open(BASE + "/")
+    p.send("Network.enable")
+    p.send("Network.setCacheDisabled", cacheDisabled=True)
     p.send("Emulation.setDeviceMetricsOverride", width=1440, height=1000,
            deviceScaleFactor=1, mobile=False)
-    time.sleep(1.5)
+    time.sleep(1.8)
 
-    # ---------------------------------------------------------------- 登录
-    print("\n[1] 登录页")
-    p.eval("localStorage.clear()")
-    p.goto(BASE + "/", 1.6)
-    check("渲染登录表单", p.eval("!!document.querySelector('.auth-form')"))
-    cols = p.eval("getComputedStyle(document.querySelector('.auth-form')).gridTemplateColumns")
-    check("表单单列布局", len(cols.split(" ")) == 1, f"实际 {cols}")
-    inputs = p.eval("document.querySelectorAll('.auth-form input').length")
-    check("两个输入框", inputs == 2, f"实际 {inputs}")
-    p.shot(str(SHOTS / "01-login.png"))
+    try:
+        # ---------------------------------------------------------------- 登录
+        # 首页现在有登录门禁，先注册拿到会话，才看得到落地页
+        print("\n[1] 登录页")
+        p.goto(BASE + "/login.html", wait=1.6)
+        check("渲染登录表单", p.eval("!!document.querySelector('.auth-form')"))
+        check("登录态两个输入框",
+              p.eval("document.querySelectorAll('.auth-form input').length") == 2,
+              str(p.eval("document.querySelectorAll('.auth-form input').length")))
+        p.shot(str(SHOTS / "02-login.png"))
 
-    # 切到注册 tab
-    p.eval("""
-      (() => {
-        const t = [...document.querySelectorAll('.auth-tabs button, .auth-tab')];
-        if (t.length) { t[t.length-1].click(); return 'tab'; }
-        const b = [...document.querySelectorAll('button')].find(b => /注册/.test(b.textContent));
-        if (b) { b.click(); return 'btn'; }
-        return 'none';
-      })()
-    """)
-    time.sleep(0.4)
-    p.shot(str(SHOTS / "02-register.png"))
+        # 切到注册 tab
+        p.eval("""
+          (() => {
+            const t = [...document.querySelectorAll('.auth-tab')];
+            if (t.length) { t[t.length-1].click(); return 'tab'; }
+            const b = [...document.querySelectorAll('button')].find(b => /注册/.test(b.textContent));
+            if (b) { b.click(); return 'btn'; }
+            return 'none';
+          })()
+        """)
+        time.sleep(0.4)
+        n = p.eval("document.querySelectorAll('.auth-form input').length")
+        check("注册表单三格", n == 3, f"实际 {n} 格")
+        p.shot(str(SHOTS / "02b-register.png"))
 
-    def fill(user_value: str, pass_value: str):
-        # 注册模式有第三个「确认密码」输入框，按数量全部填满
-        p.eval(
-            "(([u, pw]) => {"
-            "  const ins = document.querySelectorAll('.auth-form input');"
-            "  const set = (el, v) => {"
-            "    const d = Object.getOwnPropertyDescriptor(el.constructor.prototype, 'value');"
-            "    d.set.call(el, v);"
-            "    el.dispatchEvent(new Event('input', {bubbles: true}));"
-            "  };"
-            "  set(ins[0], u); set(ins[1], pw);"
-            "  if (ins[2]) set(ins[2], pw);"
-            "  return ins.length;"
-            "})(" + json.dumps([user_value, pass_value]) + ")"
-        )
+        p.eval("""
+          (() => {
+            const ins = document.querySelectorAll('.auth-form input');
+            const set = (el, v) => {
+              const d = Object.getOwnPropertyDescriptor(el.constructor.prototype, 'value');
+              d.set.call(el, v);
+              el.dispatchEvent(new Event('input', {bubbles: true}));
+            };
+            set(ins[0], '%s'); set(ins[1], '%s');
+            if (ins[2]) set(ins[2], '%s');
+          })()
+        """ % (user, pw, pw))
+        p.eval("document.querySelector('.auth-form').requestSubmit()")
+        time.sleep(2.2)
+        token = p.eval("localStorage.getItem('gomoku.token')")
+        err = p.eval("document.querySelector('.banner-error, .auth-error')?.innerText || ''")
+        check("注册后拿到 token", bool(token), repr(token) + " err=" + repr(err))
+        if not token:
+            p.shot(str(SHOTS / "02c-register-fail.png"))
+            print("!! 注册失败，后续中止")
+            return 1
 
-    n = fill(user, pw)
-    n = p.eval("document.querySelectorAll('.auth-form input').length")
-    check("注册表单填了三格", n == 3, f"实际 {n} 格")
-    p.eval("document.querySelector('.auth-form').requestSubmit()")
-    time.sleep(2.2)
-    token = p.eval("localStorage.getItem('gomoku.token')")
-    err = p.eval("document.querySelector('.auth-error')?.innerText || ''")
-    check("注册后拿到 token", bool(token), repr(token) + " err=" + repr(err))
-    if not token:
-        p.shot(str(SHOTS / "02b-register-fail.png"))
-        print("!! 注册失败，后续中止")
-        p.close()
-        return
+        # ---------------------------------------------------------------- 大厅
+        print("\n[2] 大厅落地页")
+        p.goto(BASE + "/index.html", wait=2.5)
+        check("登录后落在首页", "index.html" in (p.eval("location.pathname") or ""), p.eval("location.pathname"))
+        check("背景视频在", p.eval("!!document.querySelector('.bg-video video, video.bg-video')"))
+        check("点阵标题两行", p.eval("document.querySelectorAll('.hl-line').length") == 2)
+        check("信任环三个", p.eval("document.querySelectorAll('.trust-ring').length") == 3)
+        check("数据脚注四项", p.eval("document.querySelectorAll('.stat').length") == 4)
+        check("导航六个功能入口", p.eval("document.querySelectorAll('.nav-pill .nav-link').length") == 6)
+        check("退出入口指向 login", p.eval(
+            "!!document.querySelector('a[href*=\"login.html\"]')"))
+        check("开始按钮指向 play", p.eval(
+            "!!document.querySelector('a[href*=\"play.html\"]')"))
+        p.shot(str(SHOTS / "01-landing.png"))
 
-    # ---------------------------------------------------------------- 大厅
-    print("\n[2] 大厅")
-    cards = p.eval("document.querySelectorAll('.module-card').length")
-    check("渲染大厅卡片", cards == 4, f"实际 {cards}")
-    links = p.eval("document.querySelectorAll('.hub-link').length")
-    check("工具入口在下方另列", links == 3, f"实际 {links}")
-    check("显示用户名", user in (p.eval("document.body.innerText") or ""))
-    p.shot(str(SHOTS / "03-hub.png"))
+        # ---------------------------------------------------------------- 对弈
+        print("\n[3] AI 对弈")
+        p.goto(BASE + "/play.html", wait=2.0)
+        check("准备页三张对手卡", p.eval("document.querySelectorAll('.setup-card').length") == 3)
+        check("强度四档", p.eval("document.querySelectorAll('.chip[data-level]').length") == 4)
+        check("执子两项", p.eval("document.querySelectorAll('.chip[data-color]').length") == 2)
+        before = p.eval("(() => { const el = document.querySelector('.setup-summary-text'); return el ? el.textContent : ''; })()")
+        p.eval("document.querySelector('.chip[data-level=\"4\"]').click()")
+        time.sleep(0.3)
+        after = p.eval("(() => { const el = document.querySelector('.setup-summary-text'); return el ? el.textContent : ''; })()")
+        check("摘要跟随强度档更新", before != after, f"{before} → {after}")
+        p.shot(str(SHOTS / "03-setup.png"))
 
-    # ---------------------------------------------------------------- 教程
-    print("\n[3] 教程")
-    p.eval("location.hash = '#/tutorial'")
-    time.sleep(1.2)
-    chapters = p.eval("document.querySelectorAll('.tut-nav button').length")
-    check("章节列表非空", chapters >= 5, f"实际 {chapters}")
-    check("教程正文有内容", len((p.eval("document.querySelector('.tut-body')?.innerText") or "")) > 200)
-    demos = p.eval("document.querySelectorAll('.tut-demo svg').length")
-    check("教程内嵌棋盘图", demos >= 1, f"{demos} 个")
-    p.shot(str(SHOTS / "04-tutorial.png"))
-    # 切到第二章
-    p.eval("""
-      (() => { const b = document.querySelectorAll('.tut-nav button, .tut-chapter'); if (b[1]) b[1].click(); })()
-    """)
-    time.sleep(0.6)
-    p.shot(str(SHOTS / "04b-tutorial-ch2.png"))
+        start_game(p)
+        check("提交设置后进到棋盘", "game=" in (p.eval("location.search") or ""), p.eval("location.search"))
+        check("出现棋盘 canvas", p.eval("!!document.querySelector('.board-canvas')"))
+        check("顶栏状态药丸", p.eval("!!document.querySelector('.play-meta .pill')"))
 
-    # ---------------------------------------------------------------- 对弈
-    print("\n[4] AI 对弈")
-    p.eval("location.hash = '#/play'")
-    time.sleep(1.6)
-    p.shot(str(SHOTS / "05-play.png"))
-    # 改版后 /play 是准备页，棋盘在 /play/{id}：先提交设置再断言棋盘
-    p.eval("document.querySelector('.setup-foot .btn-primary').click()")
-    time.sleep(5.5)
-    check("提交设置后进到棋盘", "/play/" in (p.eval("location.hash") or ""), p.eval("location.hash"))
-    check("出现棋盘 canvas", p.eval("!!document.querySelector('.board-canvas')"))
+        spot = pick_empty_spot(p)
+        if spot:
+            click_board(p, spot)
+        moves = wait_moves(p, 2, 12)
+        check("落子后 AI 有应手", moves >= 2, f"{moves} 手 / 点 {spot}")
+        p.shot(str(SHOTS / "04-play-move.png"))
 
-    # 走一手。不能直接点画布中心：执白时 AI 已经占了天元，那一点是死的。
-    # 所以从局面快照里挑一个空点，坐标换算照抄 Board——pad 占边长 5.5%，
-    # step = (边长 − 2×pad) / 14，board 是长 225 的一维数组。
-    rect = p.eval("""
-      (() => {
-        const c = document.querySelector('.board-canvas');
-        if (!c) return null;
-        const r = c.getBoundingClientRect();
-        return {x: r.x, y: r.y, w: r.width, h: r.height};
-      })()
-    """)
-    spot = p.eval("""
-      (() => {
-        const g = window.__gomoku || {};
-        const board = g.board || [];
-        for (const [x, y] of [[7, 7], [7, 8], [8, 7], [6, 6], [8, 8], [7, 6], [6, 7]]) {
-          if (!board[y * 15 + x]) return [x, y];
-        }
-        return null;
-      })()
-    """)
-    if rect and spot:
-        pad = rect["w"] * 0.055
-        step = (rect["w"] - pad * 2) / 14
-        cx = rect["x"] + pad + spot[0] * step
-        cy = rect["y"] + pad + spot[1] * step
-        for ev, extra in (("mousePressed", {"button": "left", "clickCount": 1}),
-                          ("mouseReleased", {"button": "left", "clickCount": 1})):
-            p.send("Input.dispatchMouseEvent", type=ev, x=cx, y=cy, **extra)
-        # 一手要走「本地 → 服务端 → AI 应手」一个来回，点完立刻读还是 0
+        # ---------------------------------------------------------------- 学习
+        print("\n[4] 学习模式")
+        p.goto(BASE + "/play.html", wait=2.0)
+        start_game(p, mode_selector='[data-mode="learn"]')
+        check("学习模式进到棋盘", "game=" in (p.eval("location.search") or ""), p.eval("location.search"))
+        spot = pick_empty_spot(p)
+        if spot:
+            click_board(p, spot)
+        wait_moves(p, 2, 12)
+        time.sleep(1.0)
+        coach_txt = p.eval("document.querySelector('.coach')?.innerText || ''")
+        check("教练给出评语", len(coach_txt) > 10, coach_txt[:40])
+        p.shot(str(SHOTS / "05-learn-coach.png"))
+
+        # ---------------------------------------------------------------- 代码工坊
+        print("\n[5] 代码工坊")
+        p.goto(BASE + "/code.html", wait=2.0)
+        check("渲染编辑器", p.eval("!!document.querySelector('.code-drop textarea')"))
+        check("有拖拽落区", p.eval("!!document.querySelector('.code-drop')"))
+        caps = api("/api/lab/capabilities", token=token)[1]
+        langs = (caps.get("capabilities") or caps).get("languages", [])
+        check("能力探测含 Python 与 C++", {"python", "cpp"} <= set(langs), f"{langs}")
+        check("初始标注内置模板",
+              p.eval("(document.querySelector('.code-file')||{textContent:''}).textContent.includes('内置模板') === true"))
+        p.shot(str(SHOTS / "06-code.png"))
+
+        code = p.eval("document.querySelector('.code-drop textarea').value")
+        check("编辑器有初始代码", len(code or "") > 50, f"{len(code or '')} 字符")
+        v = api("/api/lab/verify", {"source": code, "language": "python"}, token=token)
+        check("校验 Python 模板通过", v[1].get("ok") is True, json.dumps(v[1])[:160])
+
+        # 上传一份本地 .py：塞进 <input type=file>，跟点「选择文件…」同一条路
+        upload = Path(tempfile.gettempdir()) / "walk-corner.py"
+        upload.write_text(UPLOAD_SRC, encoding="utf-8")
+        set_file(p, upload)
+        got = False
+        for _ in range(20):
+            time.sleep(0.3)
+            if p.eval("(document.querySelector('.code-file')||{textContent:''}).textContent.includes('walk-corner.py')"):
+                got = True
+                break
+        check("上传后工具栏显示文件名", got)
+        check("上传后行数跟着变",
+              p.eval("document.querySelector('.code-lines').textContent") ==
+              f"{UPLOAD_SRC.count(chr(10)) + 1} 行",
+              p.eval("document.querySelector('.code-lines').textContent"))
+        check("上传后编辑器换成文件内容",
+              p.eval("document.querySelector('.code-drop textarea').value") == UPLOAD_SRC)
+        v2 = api("/api/lab/verify", {"source": UPLOAD_SRC, "language": "python"}, token=token)
+        check("上传的代码能过校验", v2[1].get("ok") is True, json.dumps(v2[1])[:160])
+
+        # 拖拽悬停要出提示
+        hint = p.eval("""(async () => {
+          const drop = document.querySelector('.code-drop')
+          const dt = new DataTransfer()
+          drop.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: dt}))
+          await new Promise((r) => setTimeout(r, 120))
+          const on = drop.classList.contains('is-over')
+          drop.dispatchEvent(new DragEvent('dragleave', {bubbles: true, cancelable: true, dataTransfer: dt}))
+          await new Promise((r) => setTimeout(r, 120))
+          return JSON.stringify({on, off: !drop.classList.contains('is-over')})
+        })()""")
+        check("拖拽悬停出提示、移开收起", hint == '{"on":true,"off":true}', hint)
+
+        # 跑一局：按上传的那份代码跑，看棋盘和过程记录都长出来
+        clicked = p.eval("""
+          (() => {
+            const b = [...document.querySelectorAll('.code-actions button')]
+              .find(x => /开始对弈/.test(x.textContent));
+            if (b) { b.click(); return true; }
+            return false;
+          })()
+        """)
+        check("找到开始对弈按钮", bool(clicked))
+        rows = 0
+        for _ in range(30):
+            time.sleep(1.0)
+            rows = p.eval("document.querySelectorAll('.arena-moves li, .lab-moves li').length")
+            if rows > 0:
+                break
+        check("代码工坊产生对局记录", rows > 0, f"{rows} 手")
+        check("棋盘渲染出来", p.eval("!!document.querySelector('.code-run .board-frame canvas')"))
+        p.shot(str(SHOTS / "07-code-match.png"))
+
+        # ---------------------------------------------------------------- 竞技场
+        print("\n[6] 算法竞技场")
+        p.goto(BASE + "/arena.html", wait=1.0)
+        # 页面要先拉 /api/arena/config 才渲染，冷启动下 2 秒未必够，轮询等它
         for _ in range(40):
-            if p.eval("(window.__gomoku && window.__gomoku.moves) ? window.__gomoku.moves.length : 0"):
+            if p.eval("document.querySelectorAll('.arena-presets .chip').length") >= 4:
                 break
             time.sleep(0.25)
-    moves = p.eval("(window.__gomoku && window.__gomoku.moves) ? window.__gomoku.moves.length : 0")
-    check("落子后有棋谱", bool(moves), f"{moves} 手 / 点 {spot}")
-    p.shot(str(SHOTS / "06-play-move.png"))
+        pickers = p.eval("document.querySelectorAll('.picker').length")
+        check("渲染对阵选择器", pickers == 2, f"{pickers} 个")
+        presets = p.eval("document.querySelectorAll('.arena-presets .chip').length")
+        check("预设对阵至少四组", presets >= 4, f"{presets} 组")
 
-    # ---------------------------------------------------------------- 学习
-    print("\n[5] 学习模式")
-    p.eval("location.hash = '#/learn'")
-    time.sleep(1.6)
-    p.shot(str(SHOTS / "07-learn.png"))
-    # 学习模式同样先过准备页，教练面板在对局页的解说页签里
-    p.eval("document.querySelector('.setup-foot .btn-primary').click()")
-    time.sleep(5.5)
-    check("学习模式也进到棋盘", "/play/" in (p.eval("location.hash") or ""), p.eval("location.hash"))
-    check("渲染教练面板", p.eval("!!document.querySelector('.coach')"))
-    rect = p.eval("""
-      (() => { const c = document.querySelector('.board-canvas'); if (!c) return null;
-        const r = c.getBoundingClientRect(); return {x: r.x, y: r.y, w: r.width, h: r.height}; })()
-    """)
-    if rect:
-        for ev in ("mousePressed", "mouseReleased"):
-            p.send("Input.dispatchMouseEvent", type=ev,
-                   x=rect["x"] + rect["w"] / 2 + 30, y=rect["y"] + rect["h"] / 2 + 30,
-                   button="left", clickCount=1)
-        time.sleep(2.6)
-    coach_txt = p.eval("document.querySelector('.coach')?.innerText || ''")
-    check("教练给出评语", len(coach_txt) > 10, coach_txt[:40])
-    p.shot(str(SHOTS / "08-learn-coach.png"))
-
-    # ---------------------------------------------------------------- 代码工坊
-    print("\n[6] 代码工坊")
-    p.eval("location.hash = '#/code'")
-    time.sleep(1.8)
-    check("渲染编辑器", p.eval("!!document.querySelector('.code-drop .editor textarea')"))
-    check("有拖拽落区", p.eval("!!document.querySelector('.code-drop')"))
-    caps = api("/api/lab/capabilities", token=token)[1]
-    langs = (caps.get("capabilities") or caps).get("languages", [])
-    check("能力探测含 Python 与 C++", {"python", "cpp"} <= set(langs), f"{langs}")
-    check("初始标注内置模板",
-          p.eval("(document.querySelector('.code-file')||{}).innerText?.includes('内置模板') === true"))
-    p.shot(str(SHOTS / "09-code.png"))
-
-    # 校验 Python 模板
-    code = p.eval("document.querySelector('.editor textarea').value")
-    check("编辑器有初始代码", len(code or "") > 50, f"{len(code or '')} 字符")
-    v = api("/api/lab/verify", {"source": code, "language": "python"}, token=token)
-    check("校验 Python 模板通过", v[1].get("ok") is True, json.dumps(v[1])[:160])
-
-    # 上传一份本地 .py：塞进 <input type=file>，跟点「选择文件…」同一条路
-    upload = Path(tempfile.gettempdir()) / "walk-corner.py"
-    upload.write_text(UPLOAD_SRC, encoding="utf-8")
-    set_file(p, upload)
-    got = False
-    for _ in range(20):
+        # 换成神经 vs 贪心，跑得快；这一段要验的是开局那一手和手数统计
+        p.eval("""
+          (() => {
+            const b = [...document.querySelectorAll('.arena-presets .chip')]
+              .find(x => /神经 vs 贪心/.test(x.textContent));
+            if (b) { b.click(); return true; }
+            return false;
+          })()
+        """)
         time.sleep(0.3)
-        if p.eval("(document.querySelector('.code-file')||{}).innerText?.includes('walk-corner.py')"):
-            got = True
-            break
-    check("上传后工具栏显示文件名", got)
-    check("上传后行数跟着变",
-          p.eval("document.querySelector('.code-lines').innerText") ==
-          f"{UPLOAD_SRC.count(chr(10)) + 1} 行",
-          p.eval("document.querySelector('.code-lines').innerText"))
-    check("上传后编辑器换成文件内容",
-          p.eval("document.querySelector('.editor textarea').value") == UPLOAD_SRC)
-    v2 = api("/api/lab/verify", {"source": UPLOAD_SRC, "language": "python"}, token=token)
-    check("上传的代码能过校验", v2[1].get("ok") is True, json.dumps(v2[1])[:160])
+        clicked = p.eval("""
+          (() => {
+            const b = [...document.querySelectorAll('.arena-buttons button')]
+              .find(x => /开始对局/.test(x.textContent));
+            if (b) { b.click(); return true; }
+            return false;
+          })()
+        """)
+        check("找到开始对局按钮", bool(clicked))
+        for _ in range(80):
+            time.sleep(0.15)
+            if p.eval("document.querySelectorAll('.arena-moves li').length") >= 1:
+                break
+        first = p.eval("""
+          (() => {
+            const li = document.querySelector('.arena-moves li');
+            if (!li) return null;
+            const q = (s) => li.querySelector(s)?.textContent.trim() || '';
+            return [q('.lab-move-n'), q('.lab-move-xy'), q('.lab-move-ms')];
+          })()
+        """)
+        check("落子记录首行是开局手", bool(first) and first[0] == "1", repr(first))
+        check("开局手不显示耗时", bool(first) and first[2] == "开局", repr(first))
 
-    # 拖拽悬停要出提示（React 的 setState 是异步的，等两帧再看）
-    hint = p.eval("""(async () => {
-      const tick = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
-      const drop = document.querySelector('.code-drop')
-      const dt = new DataTransfer()
-      drop.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: dt}))
-      await tick()
-      const on = !!document.querySelector('.code-drop-hint')
-      drop.dispatchEvent(new DragEvent('dragleave', {bubbles: true, cancelable: true, dataTransfer: dt}))
-      await tick()
-      return JSON.stringify({on, off: !document.querySelector('.code-drop-hint')})
-    })()""")
-    check("拖拽悬停出提示、移开收起", hint == '{"on":true,"off":true}', hint)
-
-    # 跑一局：按上传的那份代码跑，看棋盘和过程记录都长出来
-    clicked = p.eval("""
-      (() => {
-        const b = [...document.querySelectorAll('.code-actions button')]
-          .find(x => /开始对弈/.test(x.textContent));
-        if (b) { b.click(); return true; }
-        return false;
-      })()
-    """)
-    check("找到开始对弈按钮", bool(clicked))
-    for _ in range(30):
+        # 对局一开跑就停掉：记分牌还是 0 手，落子记录第一行写着「开局」
+        p.eval("""
+          (() => {
+            const b = [...document.querySelectorAll('.arena-buttons button')]
+              .find(x => /中止/.test(x.textContent));
+            if (b) { b.click(); return true; }
+            return false;
+          })()
+        """)
         time.sleep(1.0)
-        if p.eval("document.querySelectorAll('.lab-moves li').length") > 0:
-            break
-    rows = p.eval("document.querySelectorAll('.lab-moves li').length")
-    check("代码工坊产生对局记录", rows > 0, f"{rows} 手")
-    check("棋盘渲染出来", p.eval("!!document.querySelector('.code-run .board-frame canvas')"))
-    check("过程行是单行不折",
-          p.eval("document.querySelectorAll('.lab-moves li')[0].getBoundingClientRect().height < 40"),
-          p.eval("Math.round(document.querySelectorAll('.lab-moves li')[0].getBoundingClientRect().height)"))
-    p.shot(str(SHOTS / "10-code-match.png"))
+        check("记分板两侧就位", p.eval(
+            "!!document.querySelector('.scoreboard .score')"))
+        p.shot(str(SHOTS / "08-arena.png"), full=True)
 
-    # ---------------------------------------------------------------- 竞技场
-    print("\n[7] 算法竞技场")
-    p.eval("location.hash = '#/arena'")
-    time.sleep(1.6)
-    pickers = p.eval("document.querySelectorAll('.picker').length")
-    check("渲染对阵选择器", pickers >= 2, f"{pickers} 个")
-
-    # 换成神经 vs 贪心，跑得快；这一段要验的是开局那一手和手数统计
-    p.eval("""
-      (() => {
-        const b = [...document.querySelectorAll('.arena-presets .chip')]
-          .find(x => /神经 vs 贪心/.test(x.textContent));
-        if (b) { b.click(); return true; }
-        return false;
-      })()
-    """)
-    time.sleep(0.3)
-    clicked = p.eval("""
-      (() => {
-        const b = [...document.querySelectorAll('.arena-buttons button')]
-          .find(x => /开始对局/.test(x.textContent));
-        if (b) { b.click(); return true; }
-        return false;
-      })()
-    """)
-    check("找到开始对局按钮", bool(clicked))
-    for _ in range(80):
-        time.sleep(0.15)
-        if p.eval("document.querySelectorAll('.arena-moves li').length") >= 1:
-            break
-    first = p.eval("""
-      (() => {
-        const li = document.querySelector('.arena-moves li');
-        if (!li) return null;
-        const q = (s) => li.querySelector(s)?.innerText.trim() || '';
-        return [q('.lab-move-n'), q('.lab-move-xy'), q('.lab-move-ms')];
-      })()
-    """)
-    check("落子记录首行是开局手", bool(first) and first[0] == "1", repr(first))
-    check("开局手不显示耗时", bool(first) and first[2] == "开局", repr(first))
-
-    # 对局一开跑就停掉：这一帧最能说明问题——记分牌还是 0 手，落子记录第一行写着
-    # 「开局」。跑完再截就只能看到最后 12 手，开局那一行早被顶掉了。
-    p.eval("""
-      (() => {
-        const b = [...document.querySelectorAll('.arena-buttons button')]
-          .find(x => /中止/.test(x.textContent));
-        if (b) { b.click(); return true; }
-        return false;
-      })()
-    """)
-    for _ in range(40):
-        time.sleep(0.2)
-        if not p.eval("!!document.querySelector('.board-overlay')"):
-            break
-    p.send("Emulation.setDeviceMetricsOverride", width=1440, height=1000,
-           deviceScaleFactor=1, mobile=False)
-    time.sleep(0.4)
-    # 整页截图：落子记录在 1000 高视口下正好卡在折线以下，只截视口会把它切掉
-    p.shot(str(SHOTS / "11-arena.png"), full=True)
-
-    # 再完整跑一局，验手数统计没把开局那一手摊给任何一方
-    p.eval("""
-      (() => {
-        const b = [...document.querySelectorAll('.arena-buttons button')]
-          .find(x => /开始对局/.test(x.textContent));
-        if (b) { b.click(); return true; }
-        return false;
-      })()
-    """)
-    for _ in range(120):
+        # 再完整跑一局，验手数统计没把开局那一手摊给任何一方。
+        # 先切到入门档：困难档每手要两秒多，一整局会拖到八十秒开外。
+        p.eval("document.querySelector('.chip[data-level=\"1\"]').click()")
         time.sleep(0.3)
-        if p.eval("!!document.querySelector('.lab-result') && !document.querySelector('.board-overlay')"):
-            break
-    score = p.eval("(() => [...document.querySelectorAll('.score em')].map(e => e.innerText.trim()))()")
-    total = p.eval("""
-      (() => {
-        const t = document.querySelector('.lab-result span')?.innerText || '';
-        const m = t.match(/共\\s*(\\d+)\\s*手/);
-        return m ? Number(m[1]) : 0;
-      })()
-    """)
-    nums = [int("".join(ch for ch in s.split("·")[0] if ch.isdigit()) or 0) for s in score]
-    check("双方手数不含开局那一手", len(nums) == 2 and nums[0] + nums[1] == total - 1,
-          f"{score} 共 {total} 手")
+        p.eval("""
+          (() => {
+            const b = [...document.querySelectorAll('.arena-buttons button')]
+              .find(x => /开始对局/.test(x.textContent));
+            if (b) { b.click(); return true; }
+            return false;
+          })()
+        """)
+        for _ in range(400):
+            time.sleep(0.3)
+            if p.eval("!!document.querySelector('.lab-result') && document.querySelector('.board-overlay').hidden"):
+                break
+        score = p.eval("(() => [...document.querySelectorAll('.score em')].map(e => e.textContent.trim()))()")
+        total = p.eval("""
+          (() => {
+            const t = document.querySelector('.lab-result span')?.textContent || '';
+            const m = t.match(/共\\s*(\\d+)\\s*手/);
+            return m ? Number(m[1]) : 0;
+          })()
+        """)
+        nums = [int("".join(ch for ch in s.split("·")[0] if ch.isdigit()) or 0) for s in score]
+        check("双方手数不含开局那一手", len(nums) == 2 and nums[0] + nums[1] == total - 1,
+              f"{score} 共 {total} 手")
 
-    st, body = api("/api/arena/match", {
-        "left": {"type": "algorithm", "algorithm": "greedy"},
-        "right": {"type": "algorithm", "algorithm": "random"},
-        "rule": "renju", "difficulty": 3,
-    }, token=token, raw=True)
-    text = body.decode("utf-8", "replace")
-    check("竞技场 SSE 可用", st == 200 and "event: move" in text or '"type": "move"' in text,
-          f"{st} {text[:120]}")
+        st, body = api("/api/arena/match", {
+            "left": {"type": "algorithm", "algorithm": "greedy"},
+            "right": {"type": "algorithm", "algorithm": "random"},
+            "rule": "renju", "difficulty": 3,
+        }, token=token, raw=True)
+        text = body.decode("utf-8", "replace")
+        check("竞技场 SSE 可用", st == 200 and "event: move" in text or '"type": "move"' in text,
+              f"{st} {text[:120]}")
 
-    # ---------------------------------------------------------------- 战绩
-    print("\n[8] 战绩")
-    st, me = api("/api/auth/me", token=token)
-    user_obj = (me.get("user") or {}) if isinstance(me, dict) else {}
-    check("me 返回战绩", st == 200 and "stats" in user_obj, json.dumps(me)[:140])
-    check("战绩字段完整", {"games", "wins", "losses", "draws", "win_rate"} <= set(
-        (user_obj.get("stats") or {}).keys()), str((user_obj.get("stats") or {}).keys()))
-    history = user_obj.get("history") or []
-    check("最近对局带得出结果", all(item.get("result") in {"win", "loss", "draw"} for item in history),
-          str(history[:2]))
-
-    p.close()
-    if browser is not None:
-        browser.terminate()
-    if server is not None:
-        server.terminate()
+        # ---------------------------------------------------------------- 战绩
+        print("\n[7] 战绩")
+        st, me = api("/api/auth/me", token=token)
+        user_obj = (me.get("user") or {}) if isinstance(me, dict) else {}
+        check("me 返回战绩", st == 200 and "stats" in user_obj, json.dumps(me)[:140])
+        check("战绩字段完整", {"games", "wins", "losses", "draws", "win_rate"} <= set(
+            (user_obj.get("stats") or {}).keys()), str((user_obj.get("stats") or {}).keys()))
+        history = user_obj.get("history") or []
+        check("最近对局带得出结果", all(item.get("result") in {"win", "loss", "draw"} for item in history),
+              str(history[:2]))
+    finally:
+        p.close()
+        if browser is not None:
+            browser.terminate()
+        if server is not None:
+            server.terminate()
 
     print(f"\n{'='*48}\n通过 {ok} 项，失败 {len(fail)} 项")
     for f in fail:

@@ -28,7 +28,18 @@ sys.path.insert(0, str(ROOT))
 
 from tools.cdp import Page  # noqa: E402
 
-BASE = os.environ.get("GOMOKU_TEST_BASE", "http://127.0.0.1:8000")
+# 走查固定用自己的端口，且每次运行随机取一个空闲端口：固定端口上如果还挂着
+# 上一次没死透的服务，healthy() 会直接复用——一次性库没被重置，上一轮的
+# 上传残留就会污染这一轮的断言（这个亏吃过一次）。
+def _free_port() -> int:
+    import socket
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+PORT = int(os.environ.get("GOMOKU_TEST_PORT", "0")) or _free_port()
+BASE = os.environ.get("GOMOKU_TEST_BASE", f"http://127.0.0.1:{PORT}")
 # 截图尺寸固定成 1440×900，谁在跑、浏览器窗口多大都不影响
 VIEW = (1440, 900)
 SHOTS = ROOT / "docs" / "walk"
@@ -52,15 +63,25 @@ def check(name: str, ok: bool, extra: str = "") -> None:
 
 
 def healthy() -> bool:
+    """探针必须认得出「是我们这个服务」。
+
+    只看 /api/health 返回 200 不够：别的项目也占 8000（比如 AI Research Workspace），
+    它的 health 也返回 200，走查会一路打到人家身上，注册接口直接 405。
+    本服务的 health 是扁平结构，且必带 uptime_s / languages 两个键。
+    """
     try:
         with httpx.Client(base_url=BASE, timeout=2, trust_env=False) as c:
-            return c.get("/api/health").status_code == 200
+            r = c.get("/api/health")
+            if r.status_code != 200:
+                return False
+            body = r.json()
+            return body.get("status") == "ok" and "uptime_s" in body and "languages" in body
     except Exception:
         return False
 
 
 def ensure_server(db_path=None):
-    """8000 上没服务就自己拉一个，跑完关掉。
+    """BASE 上没自家的服务就自己拉一个，跑完关掉。
 
     走查要连真实服务，但把服务挂在外部容易中途被回收，脚本会因大量连接被拒绝而中断。
 
@@ -70,6 +91,7 @@ def ensure_server(db_path=None):
     if healthy():
         return None
     env = dict(os.environ)
+    env["PORT"] = str(PORT)
     if db_path:
         path = Path(db_path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -79,6 +101,11 @@ def ensure_server(db_path=None):
         # 棋谱和模型权重也搬过去：走查会训练模型、上传棋谱，
         # 留在 data/ 里会把开发时训好的那一份盖掉。
         env["GOMOKU_DATA"] = str(path.parent)
+        # 数据目录里还可能留着上一轮走查（或临时调试）的上传语料和权重：
+        # 库是新的、语料还是旧的，断言就会拿到不该有的「上传」行。
+        # 内置语料随仓库走（server/gomoku/corpus_seed.json），删这两个不影响。
+        for junk in ("corpus.json", "greedy_model.json"):
+            (path.parent / junk).unlink(missing_ok=True)
     proc = subprocess.Popen(
         [sys.executable, str(ROOT / "serve.py")],
         cwd=str(ROOT),
@@ -116,21 +143,23 @@ def new_account(client) -> tuple[str, str]:
 
 def open_page(base: str = "http://127.0.0.1:9222") -> Page:
     page = Page.open(f"{BASE}/", base=base)
+    # 浏览器是常驻复用的：上个会话缓存住的 JS 会让走查测到旧代码。
+    # 发布沙箱不背这个锅——本地调试一律禁缓存，跟 smoke.py 同一约定。
+    page.send("Network.enable")
+    page.send("Network.setCacheDisabled", cacheDisabled=True)
     page.viewport(*VIEW)
     return page
 
 
 def login(page: Page, token: str, path: str) -> None:
-    """先落地、再写 token、然后整页重载。
+    """先落地、再写 token、然后整页跳到目标页。
 
-    只改 hash 不会重新加载模块，token 在 api.js 里是模块级变量，读一次就定了。
-    所以必须真的 reload，否则页面还拿着上一个账号的状态。
+    前端是静态多页（MPA），每次整页加载 api.js 都会重读 localStorage，
+    所以不用再像 SPA 那样手动 reload 一次。
     """
-    page.goto(f"{BASE}/", wait=0.8)
+    page.goto(f"{BASE}/", wait=0.6)
     page.eval(f"localStorage.setItem('gomoku.token', {json.dumps(token)})")
-    page.goto(f"{BASE}/#{path}", wait=0.6)
-    page.send("Page.reload", ignoreCache=True)
-    time.sleep(1.6)
+    page.goto(f"{BASE}/{path}", wait=1.4)
 
 
 # 元素下沿要落在视口里，留 8px 余量（滚动条、半像素取整都能吃掉一点）

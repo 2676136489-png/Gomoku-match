@@ -65,6 +65,14 @@ def main() -> None:
 
     public = new_client(timeout=30)
 
+    # --- 静态站点与目录边界 ---
+    r = public.get("/index.html")
+    check("静态首页可访问", r.status_code == 200 and "Gomoku Match" in r.text, str(r.status_code))
+    r = public.get("/..%2F..%2FREADME.md")
+    check("静态目录不暴露上级文件", r.status_code == 404, str(r.status_code))
+    r = public.get("/%2e%2e/%2e%2e/.env")
+    check("静态目录不暴露环境变量", r.status_code == 404, str(r.status_code))
+
     # --- 鉴权 ---
     r = public.post("/api/games", json={})
     check("未登录开新局被拒", r.status_code == 401, str(r.status_code))

@@ -52,7 +52,7 @@ def _auth_seen(request: Request) -> dict[str, bool]:
 
 @router.get("/ready")
 def ready() -> Response:
-    """就绪探针。这里才真的验：数据库能写、前端构建产物在。
+    """就绪探针。这里才真的验：数据库能写、前端静态站在。
 
     和 /health 分开是标准做法：liveness 失败该重启进程，readiness 失败只该把
     流量摘走。把两件事合成一个端点，数据库抖一下就会把健康进程反复重启。

@@ -1,27 +1,27 @@
 # Gomoku Match
 
 [![在线演示](https://img.shields.io/badge/在线演示-直接体验-a63628?style=flat-square)](https://gomoku-match.app.workbuddy.host/?sharecode=MJAKMJUVAA)
-[![后端测试](https://img.shields.io/badge/后端测试-453%20项通过-2f6f4e?style=flat-square)](#测试)
-[![浏览器走查](https://img.shields.io/badge/浏览器走查-181%20项通过-2f6f4e?style=flat-square)](#测试)
+[![后端测试](https://img.shields.io/badge/后端测试-459%20项通过-2f6f4e?style=flat-square)](#测试)
+[![浏览器走查](https://img.shields.io/badge/浏览器走查-189%20项通过-2f6f4e?style=flat-square)](#测试)
 [![许可](https://img.shields.io/badge/许可-MIT-8a8f86?style=flat-square)](LICENSE)
 
 面向 15×15 国际连珠（Renju）规则的对弈与算法实验平台，提供人机对弈、算法竞技场、自定义策略三类对局方式，以及基于棋谱训练贪心权重的实验页面。
 
 单进程单端口部署：Python 进程同时提供 REST API 与前端静态资源；对局状态持久化于 SQLite，棋谱与训练权重存放于运行时数据目录。
 
-`Python 3.13` · `FastAPI` · `SQLite (WAL)` · `React 19` · `Vite 7` · `Docker`
+`Python 3.13` · `FastAPI` · `SQLite (WAL)` · `原生 JS 静态 MPA` · `Docker`
 
 **在线演示**：[gomoku-match](https://gomoku-match.app.workbuddy.host/?sharecode=MJAKMJUVAA)
 
-后端测试 453 项、浏览器走查 181 项，全部通过。
+后端测试 459 项、浏览器走查 189 项，全部通过。
 
 | 贪心学习：训练之后的对照表 | 棋谱展台 |
 | --- | --- |
 | ![贪心学习](docs/walk/greedy-02-trained.png) | ![棋谱展台](docs/walk/greedy-01-gallery.png) |
 
-| 大厅 | 逐手解说 |
+| 首页 | 逐手解说 |
 | --- | --- |
-| ![大厅](docs/walk/03-hub.png) | ![逐手解说](docs/walk/15-explain-history.png) |
+| ![首页](docs/walk/01-landing.png) | ![逐手解说](docs/walk/15-explain-history.png) |
 
 ---
 
@@ -48,7 +48,7 @@
 
 | 模块 | 说明 |
 | --- | --- |
-| 人机对弈 | 三档强度、三种风格；可选执子与规则，对局中可悔棋、提示 |
+| 人机对弈 | 四档强度、三种风格；可选执子与规则，对局中可悔棋、提示 |
 | 学习模式 | 逐手标注棋形名称，点评该手形成的棋形与对手活三的拦截情况 |
 | 复盘分析 | 逐手回看，胜率曲线、落点份额与解说跟着手数走 |
 | 贪心学习 | 手写分值表与学到的分值表并排对照；棋谱轮播、上传棋谱、训练过程实时可见 |
@@ -70,60 +70,54 @@
 
 ### 页面职责划分
 
-早期版本将模式选择、难度、规则、棋盘、胜率曲线、落点预测、解说与棋谱集中在同一对局页，导致开局配置与对局操作混杂。
-
-拆分后每个页面只承担一类职责：
+早期版本把模式选择、难度、规则、棋盘、胜率曲线、落点预测、解说与棋谱挤在同一页，开局配置与对局操作混在一起。现在拆成静态多页，每个页面只承担一类职责：
 
 | 页面 | 职责 |
 | --- | --- |
-| `/play` 开局准备 | 选对手、难度、规则、执子；选完提交 |
-| `/play/{id}` 对局 | 只有棋盘和右侧三个页签（解说／分析／棋谱），顶部四个操作 |
-| `/replay` 复盘 | 逐手回看，分析面板在这里 |
-| `/greedy` 贪心学习 | 看棋谱、喂棋谱、看权重怎么变 |
+| `play.html` 开局准备 | 选对手、难度、规则、执子；选完提交 |
+| `play.html?game={id}` 对局 | 只有棋盘和右侧三个页签（解说／分析／棋谱），顶部四个操作 |
+| `replay.html` 复盘 | 逐手回看，分析面板在这里 |
+| `greedy.html` 贪心学习 | 看棋谱、喂棋谱、看权重怎么变 |
 
-配置与操作分离：难度、规则属于开局前参数，悔棋、提示属于对局中操作。若置于同一面板，对局中修改难度会产生重开对局的误判。
+配置与操作分离：难度、规则属于开局前参数，悔棋、提示属于对局中操作。对局结束后「悔棋」会禁用；要重下请开新局，避免已结算的战绩被再记一次。
 
 ![开局准备](docs/walk/05b-setup.png)
 
-帮助信息分为三层，按使用频率递进：
-
-1. **面板说明**——每个面板标题下一行，讲这块是干什么的；
-2. **术语悬浮**——连珠、禁手、棋形、胜率等七个词挂 `data-tip`，悬停或键盘聚焦出释义；
-3. **首次引导**——第一次进某个页面时给三步要点，点「知道了」写入 localStorage 不再出现。对局页空间紧张，引导压成一行。
+帮助信息收敛为页头摘要与面板说明：页头一句话说明当前页面在做什么，面板标题下给一行用途说明；规则细节放在教程正文，不再额外做浮层。
 
 ---
 
 ## 界面体系
 
-界面没有引入 UI 框架，全部为手写 CSS 与内联 SVG，视觉围绕一套水墨令牌展开。
+界面没有引入 UI 框架，全部为手写 CSS 与原生 JS，视觉围绕深色视频背景与玻璃面板展开。`web/site` 是线上静态站的源码，不是构建产物；页面直接引用 `app.css`、`styles.css` 和 `pages/*.js`，没有打包步骤。Inter、Geist Pixel、Bubbledot 与页头图标都走本地文件，不依赖 Google Fonts、OnlineWebFonts 或 Font Awesome CDN。
 
-**令牌集中在 `styles.css` 的 `:root`。** 纸色四档（`--paper` 到 `--paper-deep`，冷灰白而非暖米色）；墨分五色 `--ink` 与 `--ink-1` 到 `--ink-5`，对应焦、浓、重、淡、清，取偏冷的灰阶；远山四档 `--mtn-far` 到 `--mtn-deep`，越远越淡越偏蓝；颜料为朱砂 `--seal`、花青 `--indigo`、石绿 `--jade`、赭石 `--ochre`；字体分楷体、宋体、无衬线三档。宣纸纤维不是贴图，而是 `feTurbulence` 生成的半透明灰度（`--grain`）平铺。
+**令牌集中在 `app.css` 的 `:root`。** 底色 `--bg #050507`；正文 `--muted #a3a3a3`、`--dim #828282`；玻璃面板 `--panel rgba(9,10,14,.54)` 与 `--panel-2 rgba(26,27,33,.6)`，统一 `blur(28px) saturate(1.4)`；强调色只有两支：朱砂 `--seal #cf4529`（热、学到、上调、正在发生）与石青 `--jade #4e9a8f`（冷、基线、下调、对照）；棋盘专用木色 `--wood #dcac5f`。
 
 ```css
---ink: #15181a;   --ink-1: #292e32; --ink-2: #485157;
---ink-3: #737d82; --ink-4: #9aa4a8; --ink-5: #c3cac8;
---mtn-far: #ccd8dc; --mtn-mid: #9db2ba;
---mtn-near: #5f7482; --mtn-deep: #37474f;
---seal: #a63628; --indigo: #33505f; --jade: #3f6656; --ochre: #a3752c;
+--bg: #050507;      --panel: rgba(9, 10, 14, 0.54);
+--seal: #cf4529;    --jade: #4e9a8f;
+--wood: #dcac5f;    --muted: #a3a3a3;
 ```
 
-**山景是算出来的，不是画出来的。** `Landscape.jsx` 用三条折线当山脊，再由 `feTurbulence` 生成噪声、`feDisplacementMap` 把折线撕成毛边。远山 `baseFrequency 0.005 0.012 / scale 17`，中景 `0.008 0.02 / 12`，近山 `0.012 0.028 / 7`：频率越高、位移越小，越远的山被撕得越碎。近景墨竹用带节的竿与按组放射的撇叶叠画，透明度分三档，窄屏整体隐藏——该宽度下右半会被切片裁掉。
+**背景是视频，不是图片。** 首页、登录页与所有内页共用同一段极光视频；`app.js` 的 `mountBackdrop()` 给内页注入 `.bg` 层，`login.html` 自带一层并用查重避免叠两段。视频上叠 `mix-blend-mode: screen` 色层托住暗部，再叠压暗与暗角保证文字对比度；`prefers-reduced-motion` 下隐藏视频，保留静态渐变。
 
-**正文压在深色山体上会看不清。** 处理方式统一为补纸底而非改字色：教程正文加 `rgba(247, 248, 244, 0.9)` 纸底与 1px 描边，目录的纸底做成上下淡出的渐变，避免贴成一块硬边白板。这类问题在 DOM 断言里查不到，只能靠截图确认。
+**棋盘是木色的。** `app.js` 的 `BC` 用榧木渐变（`#e9c07c → #dcac5f → #c89442`）铺底，墨线网格、白子深描边；禁手叉与胜利连线用朱红，热力与落点预测用偏红/褐，避免在木底上消失。落点预测圈半径按份额缩放，但比棋子小，避免被读成空棋子位。
+
+**代码工坊有语法高亮。** `pages/code.js` 用手写扫描器输出 token，透明 `textarea` 压在 `.code-hl` 上滚动同步；关键字靛蓝、函数木色、字符串石青绿、数字琥珀、注释暖灰。两层必须共用同一套字体、行高、内边距与 tab-size，否则高亮和光标会错位。
 
 ---
 
 ## 架构
 
 ```text
-web/  React 19 + Vite —— 大厅 · 开局准备 · 对局 · 复盘 · 教程 · 实验室 · 贪心学习
+web/site/       原生 JS 静态 MPA —— 首页 · 登录 · 对局 · 复盘 · 教程 · 贪心学习 · 代码工坊 · 竞技场
   │
   │   HTTP /api/*
   ▼
-app.py          装配层：中间件链 · 异常统一转换 · SPA 托管
+app.py          装配层：中间件链 · 异常统一转换 · 静态站点托管
 api/            accounts · games · lab · meta · greedy
 ─────────────────────────────────────────────────────────────────
-settlement      终局结算（幂等，单人去向）
+settlement      终局结算（settled 落库，幂等，单人去向）
 store           Game 对象：内存热态 + 每手落子持久化
 accounts        账户 · 会话 · 战绩
 corpus          棋谱库：内置种子 + 用户上传，三种格式解析
@@ -145,7 +139,7 @@ data/gomoku.db    data/corpus.json    data/greedy_model.json
 2. `Game.apply` 在内存里判定（禁手、胜负）。棋盘是增量结构：每落一子只更新受影响的四条线，不重算整盘。
 3. 同一事务内向 `moves` 写一行。`game_id + ply` 为主键，重复写入天然幂等。
 4. 轮到 Agent 时同步算出应手，把「落点 + 解说 + 候选份额」一起返回；讲解模式下面板停在待确认，等人点「继续」。
-5. 终局时 `settlement.settle()` 执行，`recorded` 门保证幂等，随后记战绩、写终局状态。
+5. 终局时 `settlement.settle()` 执行，`recorded` 门与 `games.settled` 列共同保证幂等，随后记战绩、写终局状态。
 
 第三步保证进程重启后可恢复：内存仅保留热态，每手落库一行，重启时按 `ply` 重放即可还原局面。
 
@@ -194,7 +188,7 @@ DROP TABLE IF EXISTS rooms;
 
 贪心策略的评估函数是一张棋形分值表，共十二项。初始版本手工设定 `WEIGHT`（活四 1000 万、冲四 15 万、活三 1500、眠二 30），数值之间仅有粗略的倍数关系，缺少数据依据。
 
-`/greedy` 页面使用棋谱训练这组权重。
+`greedy.html` 页面使用棋谱训练这组权重。
 
 ### 参数与特征
 
@@ -275,7 +269,7 @@ H8 H9 I9  /  7,7 8,8           人类坐标
 两个探针分工不同：
 
 - `/api/health` 不碰磁盘，只证明进程存活（liveness）。
-- `/api/ready` 实际执行一次数据库写入并检查前端产物，任一失败返回 503（readiness）。
+- `/api/ready` 实际执行一次数据库写入并检查前端静态站，任一失败返回 503（readiness）。
 
 容器 HEALTHCHECK 使用 `ready`：仅返回 200 而数据库不可用，不满足就绪条件。
 
@@ -289,7 +283,7 @@ python tools/run_tests.py --fast     # 跳过需要服务的端到端套件
 python tools/walk_greedy.py          # 贪心学习页走查（自启服务与浏览器）
 python tools/walk_analysis.py        # 准备页 / 对局页 / 复盘页走查
 python tools/walk_layout.py          # 七页 × 五档宽度的横向溢出复检
-python tools/walkthrough.py          # 全站八个模块走查
+python tools/walkthrough.py          # 全站八个页面走查
 ```
 
 | 套件 | 覆盖 | 项数 |
@@ -297,13 +291,13 @@ python tools/walkthrough.py          # 全站八个模块走查
 | `test_engine.py` | 禁手递归、长连、胜负、搜索、棋形 | 37 |
 | `test_lab.py` | 代码沙箱、行协议、超时与越权 | 28 |
 | `test_insight.py` | 胜率、落点份额、解说、逐手分析 | 104 |
-| `test_storage.py` | 迁移、WAL、会话、棋谱重放、单人结算、旧数据导入 | 85 |
+| `test_storage.py` | 迁移、WAL、会话、棋谱重放、单人结算、结算标记、旧数据导入 | 88 |
 | `test_greedy.py` | 棋谱解析、棋谱库、参数投影、训练与验证指标 | 85 |
-| `test_api.py` | 接口契约、鉴权通道、越权 403、贪心训练流、限流与指标分桶 | 114 |
+| `test_api.py` | 接口契约、鉴权通道、静态目录边界、越权 403、贪心训练流、限流与指标分桶 | 117 |
 | `walk_greedy.py` | 轮播、训练流、分值表、上传删除、窄屏断点 | 47 |
-| `walk_analysis.py` | 准备页选项与吸底提交条、页签切换、待确认落子、逐手回看 | 52 |
-| `walk_layout.py` | 七个页面在 1440/1100/900/760/414 下都不出横向滚动条 | 41 |
-| `walkthrough.py` | 注册、大厅、教程、对弈、学习、代码工坊、竞技场、战绩 | 41 |
+| `walk_analysis.py` | 准备页选项、页签切换、待确认落子、逐手回看 | 53 |
+| `walk_layout.py` | 七个页面在 1440/1100/900/760/414 下都不出横向滚动条 | 42 |
+| `walkthrough.py` | 注册、首页、教程、对弈、学习、代码工坊、竞技场、战绩 | 47 |
 
 `tools/run_tests.py` 每次启动独立进程（临时库、随机端口、临时数据目录、`NO_PROXY`），结束后清理，测试之间不共享状态，也不会污染 `data/`。数据目录需与库文件一同切换：仅替换库文件时，单次测试就会覆盖已训练的权重表。
 
@@ -314,7 +308,7 @@ python tools/walkthrough.py          # 全站八个模块走查
 `walk_greedy.py` 中与该页面相关的断言：
 
 - 棋盘逐手推进：断言等待手数增长而非固定时长；单盘结束有 2.4 秒停留，固定等待会落在停留期
-- 鼠标悬停暂停轮播：通过 CDP `Input.dispatchMouseEvent` 派发真实事件；React 的 `onMouseEnter` 由 `mouseover` 合成，直接派发 `mouseenter` 不触发
+- 鼠标悬停暂停轮播：通过 CDP `Input.dispatchMouseEvent` 派发真实移动事件；页面直接监听原生 `mouseenter` / `mouseleave`
 - 训练耗时约一秒，进度线仅在 epoch 事件间出现，因此采用轮询采样而非定点断言
 - 分值表色条不越出所属栏位，数字列在 1440 与 1024 宽度下对齐
 - 上传棋谱后列表新增一行、展台同步切换；删除后恢复原状
@@ -328,11 +322,11 @@ python tools/walkthrough.py          # 全站八个模块走查
 ## 部署
 
 ```bash
-make docker            # 两阶段构建：node 编译前端，python 运行
+make docker            # 单阶段构建：Python 运行时 + web/site 静态文件
 make docker-run        # docker compose up -d，数据挂载在 gomoku-data 卷
 ```
 
-镜像内不含 `node_modules` 与工具链：前端在 `node:22-alpine` 阶段编译为静态文件，运行镜像只复制构建产物。以 uid 10001 的非 root 用户运行，`/data` 单独建目录并 chown，挂载卷时权限才能对应。
+镜像内不含 Node、`node_modules` 与前端工具链：`web/site` 是已经写好的静态多页站，Dockerfile 直接复制，没有构建步骤。以 uid 10001 的非 root 用户运行，`/data` 单独建目录并 chown，挂载卷时权限才能对应。
 
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
@@ -345,19 +339,19 @@ make docker-run        # docker compose up -d，数据挂载在 gomoku-data 卷
 
 单进程是有意的设计：对局状态保存在内存中，多 worker 会导致各进程持有部分棋局。横向扩展需先将热态迁移至共享存储，属于独立的改造范围。
 
-CI 矩阵：Python 3.11 与 3.13 × Node 22，执行 `compileall`、全部测试、`docker build`（不推送）。
+CI 矩阵：Python 3.11 与 3.13，执行 `compileall`、静态站点存在性检查、全部测试、`docker build`（不推送）。前端没有构建步骤，不需要 Node。
 
 ### 托管在 WorkBuddy 云平台
 
 线上运行于 WorkBuddy 发布沙箱，与 Docker 部署为两条独立路径。差异如下：
 
 - **启动命令需显式指定。** 平台的 Python 探测默认查找 `main.py`，本项目入口为 `serve.py`，不指定会因 `can't open file '/workspace/main.py'` 启动失败。发布时传入 `startCmd = python serve.py`。
-- **前端产物目录不能命名为 `dist`。** 上传时 `dist/build/out` 被当作构建输出剔除，服务可启动但只有接口没有页面；`/api/ready` 会明确返回 `frontend.ok = false`。因此产物输出到 `web/site`，路径统一由 `server/db.py` 的 `WEB_DIST` 提供。
+- **前端目录不能命名为 `dist/build/out`。** 上传时这些目录会被平台当作构建输出剔除，服务可启动但只有接口没有页面；`/api/ready` 会明确返回 `frontend.ok = false`。静态站因此放在 `web/site`，路径统一由 `server/db.py` 的 `WEB_DIST` 提供。
 - **鉴权 token 通过 Cookie 传递。** 分享网关会为每个请求注入自身的 `Authorization` 头，覆盖浏览器发送的值，因此服务端按 cookie → query → 自定义头 → 标准头的顺序读取 token。
 - **模型密钥通过 `.env` 提供。** 平台仅向容器注入 `PORT`，`GOMOKU_LLM_*` 无配置入口。`serve.py` 启动时将项目根目录 `.env` 读入 `os.environ`（已有环境变量优先）；密钥随项目上传即可生效，`.env` 已在 `.gitignore` 中排除。未配置时不影响启动，`/api/health` 返回 `llm.enabled = false`，Agent 回落到内置策略人格。
 - **WAF 会误判请求体中的源码。** 代码工坊提交的模板文本会被注入规则拦截并返回 HTML 拦截页。传输层提供 `_enc=b64` 备用通道，默认仍以明文发送。
 
-部署前先在本地 `npm run build`，`web/site` 存在才会被一起上传。
+发布前确认 `web/site/index.html` 存在即可，不需要前端构建；`web/site` 已纳入 Git，随项目根目录一起上传。
 
 ---
 
@@ -365,12 +359,12 @@ CI 矩阵：Python 3.11 与 3.13 × Node 22，执行 `compileall`、全部测试
 
 ```text
 server/
-  app.py            装配层：中间件、异常处理、SPA 托管
+  app.py            装配层：中间件、异常处理、静态站点托管
   db.py  repo.py    连接与迁移 / 唯一 SQL 出口
   paths.py          运行时数据目录（库、棋谱、权重表都挂这里）
   store.py          Game 对象、冷热分层、重放
   accounts.py       账户、会话、战绩
-  settlement.py     终局结算（幂等）
+  settlement.py     终局结算（settled 落库，幂等）
   corpus.py         棋谱库：解析、增删、训练集
   analysis.py       胜率与落点份额
   observability.py  指标、JSON 日志、限流、安全头
@@ -388,11 +382,21 @@ server/
     net.py          局面价值网络
     coach.py        点评   insight.py  逐手解说   llm.py  可选模型
     corpus_seed.json  内置的 50 盘棋谱
-web/src/
-  App.jsx           路由、导航分组、ErrorBoundary
-  pages/            Hub PlaySetup Play Replay Tutorial Code Arena Greedy
-  components/       Board、CorpusCarousel、各面板、Glossary、FirstRunTip
-  lib/              api.js（fetch 封装）router.js（hash 路由）
+web/site/
+  index.html        首页（登录门禁）
+  login.html        登录 / 注册
+  play.html         开局准备 + 对局
+  replay.html       复盘
+  tutorial.html     教程
+  greedy.html       贪心学习
+  code.html         代码工坊
+  arena.html        算法竞技场
+  app.js            共享运行时：API 客户端、登录守卫、棋盘、DOM 工具
+  pages/*.js        各页面脚本
+  app.css           内页主题
+  styles.css        首页主题
+  assets/           背景视频与 logo
+  fonts/            自托管字体（Inter / Geist Pixel / Bubbledot）
 tests/              六套后端套件
 tools/              run_tests.py、walk_*.py、cdp.py、harness.py、make_corpus.py
 engine/             代码工坊的 C++ 示例模板（沙箱内编译）
@@ -403,11 +407,11 @@ engine/             代码工坊的 C++ 示例模板（沙箱内编译）
 ## 本地运行
 
 ```bash
-make install      # pip install -r requirements.txt + npm install
-make dev          # 后端 :8000 + Vite :5173 热更新
-make serve        # 先构建前端，再单端口运行（与线上一致）
+make install      # pip install -r requirements.txt
+make serve        # 单端口运行（:8000），与线上一致
 make test         # 全部测试
-make clean        # 清理构建产物与缓存，不动 data/
+make test-fast    # 跳过端到端套件
+make clean        # 清理缓存与旧前端依赖，不动 web/site 与 data/
 ```
 
 ---
@@ -475,17 +479,19 @@ found.add(frozenset(i for i in four if i != gap))
 
 **单文件 JSON 存账户造成写放大。** 早期账户存于一个 JSON 文件，每次读 token 需遍历全部会话（O(n)），每次写需落整个文件。改用 SQLite 后 token 按主键查询，写入仅影响单行。旧数据做了幂等导入：保留原 token 摘要，用 `user_exists` 作为判断条件，重复执行不会产生重复账户。
 
-**棋盘按列宽计算高度会超出视口。** 棋盘为正方形，仅按列宽推导尺寸而忽略高度：1416×948 下计算为 678px，叠加页头、玩家条与说明文字后下沿被裁切。改为按「视口高度 − 固定开销」反推最大边长，整体布局随之收窄居中；仅压缩棋盘会使右侧栏被推远，导致左右失衡。
+**静态目录路径穿越。** 静态托管兜底路由直接把请求路径拼到 `web/site` 下，`/..%2F..%2F.env` 能读到项目根目录的环境变量与 `data/gomoku.db`。修复方式不是拦 `..` 字符串，而是把最终路径 `resolve()` 后要求它仍在 `DIST_ROOT` 内，并拒绝以 `.` 开头的路径段；测试补了 `README.md` 与 `.env` 两条 404 断言。
 
-**固定背景会降低正文对比度。** 页面底图为固定山水插画，内容滚动后文字与深色山体重叠。贪心页的棋谱库与上传区、复盘页的播放控制条、教程页正文均受此影响：同一段文字在天空区域可读，滚动后对比度不足。统一处理方式为：直接压在背景上的块补 `rgba(247, 248, 244, 0.9)` 纸底与 1px 描边，不通过调整字色补偿。此类问题无法从 DOM 断言发现，需通过截图确认。
+**终局后悔棋会重复记战绩。** 对局结束后 `undo` 仍可用，接口把 `recorded` 重置为 `False`，再次终局就再记一次。修复是双保险：前端在 `status !== 'playing'` 时禁用悔棋，后端直接返回 409；同时把结算标记落到 `games.settled`，重载后不会把同一局当成未结算。
 
-**导航被挤成竖排。** 八个平级入口与三个分组标签超出顶栏宽度，flex 收缩将「大厅」压为竖排单字。加入 `flex-wrap` 与 `white-space: nowrap` 仅能缓解，根治方式是按用途分为三组、将按钮名收敛至两到三字（「复盘分析」→「复盘」），宽度不足时依次隐藏分组标签与副标题。
+**前端事实源曾经分叉。** 线上是 `web/site` 静态多页站，仓库里却是 React/Vite 的 `web/src`；`web/site` 被 gitignore，`make build` 会用旧 React 产物覆盖它，`make clean` 会直接删掉它。现在 `web/site` 是唯一前端源码并纳入 Git，构建/开发脚本移除，Dockerfile 直接复制静态文件，CI 只检查静态站点存在。
 
-**提交按钮落在折叠线以下。** 准备页将三种对手、强度风格、规则执子依次展开，表单高 1340px，「开始对局」位于 y≈1178，1080 高度屏幕需滚动一屏才能看到。压缩间距无法省出 260px，改为提交条吸底（`position: sticky; bottom: 0`），滚动至页尾自然归位。吸底条与卡片同色时，滚动内容看起来被截断，因此将底色提至接近不透明并叠加向上投影，以区分浮层与内容。
+**视频背景会压低正文对比度。** 极光视频的亮部会穿过半透明面板，灰色正文在滚动到亮带时读不清。处理分三层：`body::before` 静态渐变兜底、`.bg-video` 压暗与降饱和、`.bg::after` 再叠压暗与暗角；裸文字额外加大半径 `text-shadow`。这类问题 DOM 断言查不到，仍需截图确认。
+
+**画布尺寸在后台标签页会停在旧值。** 棋盘构造时硬编码 560，ResizeObserver 修正走 `requestAnimationFrame`；后台标签页被节流时，画布会停在 560 横在 348 的框上。修法是 `draw()` 每次先按容器 `clientWidth` 校正，不依赖渲染帧。
 
 **指标标签基数存在风险。** 第一版按真实路径打标签，`/api/games/{id}` 每局一个新 id，时间序列只增不减。改为按路由模板打标签后才是闭集。
 
-**前端产物放在 `dist/` 会被发布平台剔除。** 首次上线时接口全部正常、`/api/health` 返回 200，但首页返回应用自身的 404，原因是 `web/dist/index.html` 未上传。发布沙箱将 `dist`、`build`、`out` 一律视为构建输出排除。`/api/ready` 直接暴露该问题（`frontend.ok = false`，并附带查找路径），避免误判为路由错误。产物目录改为 `web/site`，路径统一收敛至 `db.WEB_DIST`。
+**前端目录放在 `dist/` 会被发布平台剔除。** 首次上线时接口全部正常、`/api/health` 返回 200，但首页返回应用自身的 404，原因是前端产物没上传。发布沙箱将 `dist`、`build`、`out` 一律视为构建输出排除。`/api/ready` 直接暴露该问题（`frontend.ok = false`，并附带查找路径），避免误判为路由错误。静态站最终放在 `web/site` 并纳入 Git；目录名不要改回 `dist`。
 
 **分享网关为每个请求注入 `Authorization`。** 线上登录成功后，后续请求仍回落至登录页，本地测试全部通过。排查确认：四种 token 传递通道中，标准头被网关以自身凭据覆盖（而非丢失），因此表现为「携带认证信息但不属于当前用户」。
 
@@ -497,15 +503,7 @@ found.add(frozenset(i for i in four if i != gap))
 
 默认以明文发送：平台检查照常生效，备用通道仅用于误判场景。中间件另有一个约束：请求体读取完毕后，后续 `receive` 不能返回 `http.disconnect`，否则 SSE 断连监听会立即取消流，导致对局直播中断。
 
-**棋谱轮播与列表竞争同一状态。** 展台维护 `index`，父级维护 `activeId`，两者双向同步：上传棋谱后父级更新选中项，展台仍按自身 `index` 回传，导致列表高亮在两项间抖动。该问题无法通过静态截图发现，仅在上传交互中复现。改为单向数据流：展台不再保存 `index`，当前展示项由 `activeId` 推导，切换时调用 `onActive`。
-
-**隐藏的提示框仍参与溢出计算。** 窄屏复检报告「414 宽度下对弈页出现横向滚动条」，但遍历元素未发现越界项：`documentElement.scrollWidth` 为 473，视口 414，差值 59 落在无元素盒子覆盖的区域。
-
-术语释义由 `.term::after` 生成，绝对定位、`left: 50%`、宽 250px，收起时通过 `opacity: 0` + `visibility: hidden` 隐藏。绝对定位盒子虽不可见，仍参与祖先的滚动溢出计算：准备页「深度」标签位于右边缘，弹出框向右伸出 59px，文档因此被撑宽并出现空白横条。文本节点经 Range 测量均未越界，因此元素遍历无法定位。
-
-将收起态改为 `display: none`，不生成盒子即不参与溢出计算。`display` 无法过渡，入场改用一次性 `@keyframes`，视觉效果不变。走查补充三条断言：收起时 `display` 为 `none`、悬停时为 `block`、移开后恢复 `none`。
-
-**切换棋谱首帧异常。** 上一项修复后，点击「下一盘」偶发白屏，控制台报 `undefined is not iterable`。原因是 `ply`（当前展示手数）在换盘后需等待 effect 清零，而首帧即用于读取 `item.moves[ply - 1]`；上一盘 34 手、新棋谱 23 手时取到 `undefined`，解构即抛错。修复方式不在 effect 中争抢时序，而是在读取处夹紧：`shown = Math.min(ply, total)`，渲染与计时统一使用该值。
+**棋谱轮播的定时链。** 静态版 `greedy.js` 的 `startCarousel()` 每次调用都新起一条 `setTimeout` 链，点棋谱、上传、悬停几次后几条链并行，`ply` 加速、选中行被另一条链顶掉。修法是全局 `carouselTimer`：`startCarousel` 先 `clearTimeout`，`mouseleave` 时重新起链。
 
 ---
 

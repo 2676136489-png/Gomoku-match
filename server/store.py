@@ -290,6 +290,8 @@ class GameStore:
             winner=row["winner"],
             result_reason=row["result_reason"],
             created_at=row["created_at"],
+            # 结算标记落库，重启或冷热淘汰后不会把同一局再记一次
+            recorded=bool(row["settled"]),
         )
         for ply, move in enumerate(repo.moves_of(game_id)):
             game.pos.place(move["y"] * SIZE + move["x"], move["color"])

@@ -156,27 +156,31 @@ def game_by_id(game_id: str) -> dict | None:
 
 
 def add_move(game_id: str, ply: int, x: int, y: int, color: int, **extra: Any) -> None:
-    db.execute(
-        "INSERT OR REPLACE INTO moves (game_id, ply, x, y, color, source, comment, think_ms, eval)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            game_id,
-            ply,
-            x,
-            y,
-            color,
-            extra.get("source", ""),
-            extra.get("comment", ""),
-            int(extra.get("think_ms", 0)),
-            float(extra.get("eval", 0.0)),
-        ),
-    )
-    db.execute("UPDATE games SET moves_count = ? WHERE id = ?", (ply + 1, game_id))
+    # 落子行与手数计数要么一起成功，要么一起回滚；分成两条自动提交会出现
+    # 「moves 里有这手、games.moves_count 还停在上一手」的中间态。
+    with db.transaction() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO moves (game_id, ply, x, y, color, source, comment, think_ms, eval)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                game_id,
+                ply,
+                x,
+                y,
+                color,
+                extra.get("source", ""),
+                extra.get("comment", ""),
+                int(extra.get("think_ms", 0)),
+                float(extra.get("eval", 0.0)),
+            ),
+        )
+        conn.execute("UPDATE games SET moves_count = ? WHERE id = ?", (ply + 1, game_id))
 
 
 def trim_moves(game_id: str, keep: int) -> None:
-    db.execute("DELETE FROM moves WHERE game_id = ? AND ply >= ?", (game_id, keep))
-    db.execute("UPDATE games SET moves_count = ? WHERE id = ?", (keep, game_id))
+    with db.transaction() as conn:
+        conn.execute("DELETE FROM moves WHERE game_id = ? AND ply >= ?", (game_id, keep))
+        conn.execute("UPDATE games SET moves_count = ? WHERE id = ?", (keep, game_id))
 
 
 def finish_game(
@@ -189,7 +193,7 @@ def finish_game(
 ) -> None:
     db.execute(
         "UPDATE games SET status = ?, winner = ?, result_reason = ?, win_line = ?,"
-        " finished_at = ? WHERE id = ?",
+        " finished_at = ?, settled = 1 WHERE id = ?",
         (status, winner, reason, json.dumps(win_line), time.time(), game_id),
     )
 

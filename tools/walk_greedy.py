@@ -6,15 +6,14 @@
 真正需要拿眼睛确认的是三件接口测不出来的事：
 
 1. 轮播真的在动。静态截图看不出「每盘从头摆一遍」，所以这里等两秒再读手数。
-2. 训练跑起来时界面有没有反应：进度线、交叉熵曲线、指标从「—」变成数字。
+2. 训练跑起来时界面有没有反应：训练态、交叉熵曲线、指标从「—」变成数字。
 3. 分值表在两侧色条都画出来的情况下还能读——条子溢出栏位、数字列对不齐，
    只有真浏览器知道。
 
 顺带守住横向不溢出：贪心页有两处最容易崩的布局，分值表的四栏和棋谱库的两栏。
 窄屏量一次，`scrollWidth` 超过视口就是溢出。
 
-前置只有一步：先 npm run build（服务托管的是 web/site）。
-服务和浏览器都由脚本自己起，跑完自己关。
+前端是静态多页，直接访问 greedy.html。服务和浏览器都由脚本自己起，跑完自己关。
 """
 
 from __future__ import annotations
@@ -60,8 +59,8 @@ COUNT_RE = (
 def hover(page, sel: str, inside: bool) -> None:
     """把鼠标真的移到元素上/移开。
 
-    React 的 onMouseEnter 是从 mouseover/mouseout 合成的，直接 dispatch 一个
-    'mouseenter' 事件它收不到——必须走 CDP 的 Input，让浏览器自己发真事件。
+    mouseenter/mouseleave 监听器收不到合成的 enter 事件——必须走 CDP 的 Input，
+    让浏览器自己发真事件。
     """
     box = page.eval(
         "((sel) => { const el = document.querySelector(sel); if (!el) return null;"
@@ -88,11 +87,11 @@ def main() -> int:
         with httpx.Client(base_url=BASE, timeout=30, trust_env=False) as c:
             _, token = new_account(c)
 
-        login(page, token, "/greedy")
-        page.goto(f"{BASE}/#/greedy", wait=1.8)
+        login(page, token, "greedy.html")
 
         # ------------------------------------------------------------ 落地
-        check("页面没崩", page.eval("!document.querySelector('.crash')"))
+        # 错误横幅是常驻节点，没错误时靠 hidden 收起——只查「可见的错误」
+        check("页面没崩", page.eval("!document.querySelector('.banner-error:not([hidden])')"))
         check("渲染出贪心页", page.eval("!!document.querySelector('.greedy')"))
         check("标题是贪心学习", text_of(page, ".page-head h2") == "贪心学习", text_of(page, ".page-head h2"))
         check("页头三个小签", count(page, ".greedy-head-badges .badge") == 3,
@@ -103,8 +102,8 @@ def main() -> int:
 
         # ------------------------------------------------------------ 棋谱展台
         check("展台在页面上", page.eval("!!document.querySelector('.carousel')"))
-        check("展台里有棋盘", count(page, ".carousel .board-canvas") >= 1,
-              str(count(page, ".carousel .board-canvas")))
+        check("展台里有棋盘", count(page, ".carousel-board .board-canvas") >= 1,
+              str(count(page, ".carousel-board .board-canvas")))
         dots = count(page, ".carousel-dots .carousel-dot")
         check("圆点数等于棋谱数", dots >= 5, str(dots))
         total = page.eval(COUNT_RE)
@@ -175,36 +174,31 @@ def main() -> int:
         started = time.time()
         click(page, ".greedy-train .btn-primary", wait=0.0)
         # 训练不到一秒，点完立刻读一次是在赌运气：慢一点训练已经结束、按钮变回「重新学习」，
-        # 快一点 SSE 的 start 帧还没到。连续读一小段，中途见过「训练中」或进度线就算数。
+        # 快一点 SSE 的 start 帧还没到。连续读一小段，中途见过「训练中」或进入 live 态就算数。
         seen_busy = False
         for _ in range(70):
             if "训练中" in text_of(page, ".greedy-train") or page.eval(
-                "!!document.querySelector('.greedy-progress')"
+                "!!document.querySelector('.greedy-stage.is-live')"
             ):
                 seen_busy = True
                 break
             time.sleep(0.03)
         check("训练状态变成训练中", seen_busy or bool(text_of(page, ".greedy-done")),
               text_of(page, ".greedy-stage"))
-        # 进度线只在 epoch 事件之间闪一下。同样只能轮询：
-        # 不能停在某个固定时刻上断言——那是在赌训练跑得够慢。
-        #
-        # 但窗口也不能太短。训练分两段：先把棋谱重放成样本，再逐 epoch 下降。
-        # 前一段没有进度线（stage 还停在「重放棋谱，构建样本」），机器一忙就能
-        # 超过两秒——窗口卡在 1.6 秒时会在这一段里空等完，然后误判成「没出现」。
-        # 按「见过进度线」或「训练已经结束」两个出口判断，给到十秒。
-        saw_bar = seen_busy and page.eval("!!document.querySelector('.greedy-progress')")
+        # 曲线要等 epoch 事件进来才会出现。训练分两段：先把棋谱重放成样本，再逐
+        # epoch 下降，前一段没有曲线。按「见过曲线」或「训练已经结束」两个出口判断。
+        saw_curve = False
         for _ in range(250):
-            if saw_bar or text_of(page, ".greedy-done"):
+            if page.eval("!!document.querySelector('.greedy-curve svg path')"):
+                saw_curve = True
                 break
-            if page.eval("!!document.querySelector('.greedy-progress')"):
-                saw_bar = True
+            if text_of(page, ".greedy-done"):
                 break
             time.sleep(0.04)
-        check("训练过程中出现过进度线", bool(saw_bar) or bool(text_of(page, ".greedy-done")),
+        check("训练过程中出现了交叉熵曲线", bool(saw_curve) or bool(text_of(page, ".greedy-done")),
               text_of(page, ".greedy-stage"))
 
-        # 训练一秒多，曲线要等 epoch 事件进来才会出现
+        # 曲线与结论的余量读取
         curve = False
         for _ in range(50):
             time.sleep(0.3)
@@ -265,7 +259,9 @@ def main() -> int:
               text_of(page, ".carousel-head h3"))
         page.shot(str(SHOTS / "greedy-03-corpus.png"))
 
-        click(page, ".corpus-del", wait=1.2)
+        # 删掉刚上传的那一盘：它此刻是选中行，定位到选中行里的删除键，
+        # 免得同名残留行抢先被点
+        click(page, ".corpus-list li.is-active .corpus-del", wait=1.2)
         check("删掉之后列表回原样", count(page, ".corpus-list li") == before_total,
               str(count(page, ".corpus-list li")))
 

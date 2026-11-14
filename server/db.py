@@ -33,7 +33,7 @@ from typing import Any, Iterator
 from . import paths
 
 ROOT = Path(__file__).resolve().parent.parent
-# 前端构建产物。目录名刻意不叫 dist：云端发布沙箱把 dist/build/out 当作构建输出
+# 前端静态站源码。目录名刻意不叫 dist：云端发布沙箱把 dist/build/out 当作构建输出
 # 从上传包里剔除，服务起来后只剩接口、没有页面（/api/ready 会报 frontend.ok=false）。
 WEB_DIST = ROOT / "web" / "site"
 DEFAULT_PATH = paths.DATA_DIR / "gomoku.db"
@@ -166,6 +166,13 @@ MIGRATIONS: list[str] = [
     ALTER TABLE users DROP COLUMN rated_games;
 
     DROP TABLE IF EXISTS rooms;
+    """,
+    # --- v3: 结算标记 ---
+    # 结算幂等原先只靠内存里的 game.recorded。进程重启或热态淘汰后重新载入，
+    # 这个标记会回到 False，已结束的局就有机会再记一次战绩。把标记落到库里，
+    # 重复载入也不会重复记账。
+    """
+    ALTER TABLE games ADD COLUMN settled INTEGER NOT NULL DEFAULT 0;
     """,
 ]
 

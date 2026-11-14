@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gomoku Match · 五子棋对弈与复盘</title>
+  <meta name="description" content="Gomoku Match — a 15×15 renju platform with a search engine, explainable analysis and a value table you can train from game records." />
+  <link rel="icon" type="image/webp" href="assets/logo.webp" />
+
+  <!-- Inter / Bubbledot / Geist Pixel 都走 styles.css 里的自托管副本，
+       页头三个功能图标改成内联 SVG：首页不再依赖任何外部字体或图标 CDN。 -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg">
+    <video class="bg-video" autoplay muted loop playsinline>
+      <source
+        src="https://motionsites.org/assets/prompt-media/f1862a9c64d125907d30.mp4"
+        type="video/mp4"
+      />
+      <!-- CloudFront 拉不到时（境内网络波动）用本地副本兜底，页面不至于黑成纯色 -->
+      <source src="assets/bg.mp4" type="video/mp4" />
+    </video>
+  </div>
+
+  <div class="page">
+    <!-- ---------------------------------------------------------- header -->
+    <header class="site-header">
+      <div class="header-row">
+        <a class="logo" href="index.html" aria-label="Gomoku Match">
+          <img src="assets/logo.webp" alt="" width="52" height="52" />
+        </a>
+
+        <!-- 导航就是站内原有的六个功能入口，跟应用内顶栏一致 -->
+        <nav class="nav-pill" aria-label="Primary">
+          <a class="nav-link" href="play.html">对弈</a>
+          <a class="nav-link" href="replay.html">复盘</a>
+          <a class="nav-link" href="tutorial.html">教程</a>
+          <a class="nav-link" href="greedy.html">贪心学习</a>
+          <a class="nav-link" href="code.html">代码</a>
+          <a class="nav-link" href="arena.html">竞技场</a>
+        </nav>
+
+        <a class="sign-in" href="login.html" id="nav-exit">退出</a>
+
+        <button class="burger" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+          <span class="burger-bar"></span>
+          <span class="burger-bar"></span>
+          <span class="burger-bar"></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ------------------------------------------------------------ hero -->
+    <main class="hero">
+      <div class="trust anim" style="--d: 0.05s">
+        <div class="trust-ring a1">
+          <span class="trust-inner" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="1.5"></rect>
+              <path d="M4 10h16M10 4v16M14 10v10M10 14h10"></path>
+            </svg>
+          </span>
+        </div>
+        <div class="trust-ring a2">
+          <span class="trust-inner" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-5 9 5-9 5-9-5z"></path>
+              <path d="M7 12v4c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5v-4"></path>
+            </svg>
+          </span>
+        </div>
+        <div class="trust-ring a3">
+          <span class="trust-inner" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19V5M4 19h16"></path>
+              <path d="M7 15l3.5-3.5 2.5 2.5L18 8"></path>
+            </svg>
+          </span>
+        </div>
+        <div class="trust-pill">六种玩法，同一张十五路棋盘</div>
+      </div>
+
+      <h1 class="headline">
+        <span class="hl-line hl-1">五子连珠</span>
+        <span class="hl-line hl-2">落子有据</span>
+      </h1>
+
+      <p class="subhead anim" style="--d: 0.28s">
+        十五路棋盘上的五子棋对弈：棋形评估与极小极大搜索打底，
+        每一手带解说，每一局能复盘。
+      </p>
+
+      <a class="cta anim-pulse" style="--d: 0.4s" href="play.html">开始对弈</a>
+    </main>
+
+    <!-- ------------------------------------------------------ stats foot -->
+    <footer class="stats">
+      <div class="stat anim" style="--d: 0.5s">
+        <span class="stat-icon">&lt;</span>
+        <span class="stat-value" data-target="15" data-decimals="0" data-suffix=" 路">15 路</span>
+        <span class="stat-label">十五路棋盘 · 225 交叉点</span>
+      </div>
+      <div class="stat anim" style="--d: 0.58s">
+        <span class="stat-icon">*</span>
+        <span class="stat-value" data-target="5" data-decimals="0" data-suffix=" 种">5 种</span>
+        <span class="stat-label">对弈与竞技算法</span>
+      </div>
+      <div class="stat anim" style="--d: 0.66s">
+        <span class="stat-icon">#</span>
+        <span class="stat-value" data-target="6" data-decimals="0" data-suffix=" 个">6 个</span>
+        <span class="stat-label">功能模块 · 对弈到竞技场</span>
+      </div>
+      <div class="stat anim" style="--d: 0.74s">
+        <span class="stat-icon">%</span>
+        <span class="stat-value" data-target="453" data-decimals="0" data-suffix=" 项">453 项</span>
+        <span class="stat-label">后端回归测试</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ------------------------------------------------------- mobile menu -->
+  <div class="mobile-overlay" id="mobile-overlay" hidden></div>
+  <nav class="mobile-menu" id="mobile-menu" aria-label="Mobile" hidden>
+    <a class="menu-link" style="--i: 0" href="play.html">对弈</a>
+    <a class="menu-link" style="--i: 1" href="replay.html">复盘</a>
+    <a class="menu-link" style="--i: 2" href="tutorial.html">教程</a>
+    <a class="menu-link" style="--i: 3" href="greedy.html">贪心学习</a>
+    <a class="menu-link" style="--i: 4" href="code.html">代码</a>
+    <a class="menu-link" style="--i: 5" href="arena.html">竞技场</a>
+    <a class="menu-signin" style="--i: 6" href="login.html" id="menu-exit">退出</a>
+  </nav>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

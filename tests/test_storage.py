@@ -200,6 +200,27 @@ def test_settlement(tmp: Path) -> None:
     settlement.settle(game)
     check("重复结算不重复记账", accounts.public("棋手甲")["stats"]["games"] == 1)
 
+    # 结算标记必须落库：进程重启或冷热淘汰后重新载入，不能把同一局再记一次。
+    check("结算标记落库", repo.game_by_id(game.id)["settled"] == 1)
+    reloaded = GameStore().get(game.id)
+    check("重载后仍视为已结算", reloaded is not None and reloaded.recorded is True)
+
+    # 终局后悔棋会把 recorded 重置后再记一次战绩，必须在接口层拒绝。
+    from fastapi import HTTPException
+
+    from server.api import games as games_api
+
+    class _Req:
+        cookies = {"gomoku_token": token}
+        query_params = {}
+        headers = {}
+
+    try:
+        games_api.undo(game.id, _Req())
+        check("终局后悔棋被拒", False)
+    except HTTPException as exc:
+        check("终局后悔棋被拒", exc.status_code == 409, str(exc.status_code))
+
     # 人执白、黑胜：这一局是负
     loss = store.create(
         mode="agent", difficulty=3, persona="balanced", human_color=WHITE, use_llm=False,

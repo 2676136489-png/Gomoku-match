@@ -1,6 +1,6 @@
 """HTTP 服务装配。
 
-这个文件只做四件事：建应用、挂中间件、挂路由、托管前端产物。具体逻辑都在
+这个文件只做四件事：建应用、挂中间件、挂路由、托管前端静态站。具体逻辑都在
 `api/` 下的路由模块里——上一版这里是 690 行，改一个接口要在里面翻半天。
 
 启动时做三件事：跑数据库迁移、把 v2 的 accounts.json 导一次、清掉过期会话。
@@ -33,6 +33,7 @@ from .softbody import SoftBody
 from .version import VERSION
 
 DIST = db.WEB_DIST
+DIST_ROOT = DIST.resolve()
 
 log = logging.getLogger("gomoku.app")
 
@@ -152,8 +153,28 @@ if DIST.exists():
         # 显式挡掉，避免废弃界面还能从旧链接打开。
         if full_path == "studio" or full_path.startswith("studio/"):
             raise StarletteHTTPException(404)
-        candidate = DIST / full_path
-        if full_path and candidate.is_file():
-            return FileResponse(candidate)
+        if full_path:
+            try:
+                candidate = (DIST_ROOT / full_path).resolve()
+            except (OSError, ValueError):
+                raise StarletteHTTPException(404)
+            # 静态目录只允许读自己。没有这一条时，/..%2F..%2F.env 会把项目根目录的
+            # .env 和 data/gomoku.db 一起送出去；编码后的斜杠不会被浏览器提前归一化，
+            # 必须在服务端把最终路径钉死在 DIST_ROOT 内。
+            if not candidate.is_relative_to(DIST_ROOT):
+                raise StarletteHTTPException(404)
+            relative = candidate.relative_to(DIST_ROOT)
+            if any(part.startswith(".") for part in relative.parts):
+                raise StarletteHTTPException(404)
+            if candidate.is_file():
+                # HTML / JS / CSS 都不缓存：这一版前端是固定文件名（pages/play.js 这些），
+                # 不带 hash。只保护 HTML 的话，改版发布后老访客会拿缓存的旧 JS 配新
+                # HTML，函数不存在直接白屏。no-cache 不是不存，而是每次带 Last-Modified
+                # 回源问一遍，文件没变就是一次 304，代价很小。
+                # assets/ 下的字体、视频、logo 走 StaticFiles 挂载，内容事实上不变，照常缓存。
+                headers = (
+                    {"Cache-Control": "no-cache"} if candidate.suffix in {".html", ".js", ".css"} else None
+                )
+                return FileResponse(candidate, headers=headers)
         # index.html 不缓存，带 hash 的 assets 缓存一年
         return FileResponse(DIST / "index.html", headers={"Cache-Control": "no-cache"})

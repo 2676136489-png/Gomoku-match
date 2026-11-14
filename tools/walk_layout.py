@@ -1,4 +1,4 @@
-"""断点溢出复检：五档宽度 × 七个页面，横向都不能出滚动条。
+"""断点溢出复检：五档宽度 × 八个页面，横向都不能出滚动条。
 
     python tools/walk_layout.py
 
@@ -9,7 +9,8 @@
 时页面不会出滚动条，元素却被切掉了。所以两边都看：页面的 scrollWidth，以及
 所有越过视口边缘的元素清单。
 
-服务和浏览器都由脚本自己起，跑完自己关。前置只有一步：先 npm run build。
+前端是静态多页（MPA）：公开页（大厅、登录）不带 token 也能量，其余六页先注册
+登录再量。服务和浏览器都由脚本自己起，跑完自己关。
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tools.cdp import ensure_browser  # noqa: E402
 from tools.harness import (  # noqa: E402
+    BASE,
     WALK_DB,
     check,
     ensure_server,
@@ -37,16 +39,19 @@ import httpx  # noqa: E402
 # 414 是最窄的一档：手机竖屏。1440 是截图用的标准宽。
 WIDTHS = [1440, 1100, 900, 760, 414]
 
-# 覆盖导航上每一个入口，外加两个带参数的二级页面。
-# /play 不带参数是准备页（选难度、选执哪边），带参数才是真的棋盘。
-PAGES = [
-    ("#/hub", "大厅"),
-    ("#/tutorial", "教程"),
-    ("#/play", "对弈"),
-    ("#/replay", "复盘"),
-    ("#/code", "代码"),
-    ("#/arena", "竞技场"),
-    ("#/greedy", "贪心学习"),
+# 前端是静态多页（MPA）：登录页是唯一的公开页；首页现在有登录门禁，
+# 必须带着 token 量，否则会被踢回登录页，量到的是重定向目标。
+PUBLIC = [
+    ("login.html", "登录"),
+]
+PRIVATE = [
+    ("index.html", "大厅"),
+    ("tutorial.html", "教程"),
+    ("play.html", "对弈"),
+    ("replay.html", "复盘"),
+    ("code.html", "代码"),
+    ("arena.html", "竞技场"),
+    ("greedy.html", "贪心学习"),
 ]
 
 PROBE = """
@@ -55,7 +60,6 @@ PROBE = """
   const doc = document.documentElement.scrollWidth
   const bad = []
   for (const el of document.querySelectorAll('body *')) {
-    if (el.closest('.landscape')) continue   // 山水层自带 overflow:hidden，量它没意义
     const r = el.getBoundingClientRect()
     if (r.width === 0 || r.height === 0) continue
     // 被祖先的滚动/裁切容器收着的，不算溢出（章节导航本来就横向滚）
@@ -80,40 +84,23 @@ PROBE = """
 """
 
 
-TIP_DISPLAY = """
-((sel) => {
-  const el = document.querySelector(sel);
-  return el ? getComputedStyle(el, '::after').display : null;
-})(%s)
-"""
-
-HOVER = """
-((sel, inside) => {
-  const el = document.querySelector(sel);
-  if (!el) return false;
-  const r = el.getBoundingClientRect();
-  const x = inside ? r.left + r.width / 2 : 4;
-  const y = inside ? r.top + r.height / 2 : 4;
-  return [Math.round(x), Math.round(y)];
-})(%s, %s)
-"""
-
-
 def measure(page) -> dict:
     return json.loads(page.eval(PROBE))
 
 
-def hover(page, sel: str, inside: bool) -> None:
-    """把鼠标真的移过去。
-
-    React 的 onMouseEnter 由 mouseover 合成，dispatch 一个 'mouseenter' 收不到；
-    这里走 CDP 的 Input，让浏览器自己发真事件。
-    """
-    xy = page.eval(HOVER % (json.dumps(sel), "true" if inside else "false"))
-    if not xy:
-        return
-    page.send("Input.dispatchMouseEvent", type="mouseMoved", x=xy[0], y=xy[1], buttons=0)
-    time.sleep(0.25)
+def sweep(page, width: int, pages, tag: str = "") -> None:
+    """一个宽度档下逐页量一遍。换宽度后必须等一帧以上，否则量到的是上一档的布局。"""
+    page.viewport(width, 900)
+    time.sleep(0.5)
+    for path, label in pages:
+        page.goto(f"{BASE}/{path}", wait=1.2)
+        d = measure(page)
+        ok = d["doc"] <= d["vw"] + 1 and d["n"] == 0
+        check(
+            f"{width:>5} × {label}{tag}",
+            ok,
+            f"doc={d['doc']} vw={d['vw']} 溢出元素={d['n']} {d['bad'][:2]}",
+        )
 
 
 def main() -> int:
@@ -122,49 +109,23 @@ def main() -> int:
 
     page = open_page()
     try:
-        with httpx.Client(base_url="http://127.0.0.1:8000", timeout=30, trust_env=False) as c:
-            _, token = new_account(c)
-        login(page, token, "/hub")
-
-        # 逐个宽度扫。换宽度后必须等一帧以上，否则量到的是上一档的布局。
+        # --- 第一轮：公开页，不登录（登录页此时才是登录页） ---
         for width in WIDTHS:
-            page.viewport(width, 900)
-            time.sleep(0.5)
-            for path, label in PAGES:
-                page.eval("location.hash = " + json.dumps(path))
-                time.sleep(0.9)
-                d = measure(page)
-                ok = d["doc"] <= d["vw"] + 1 and d["n"] == 0
-                check(
-                    f"{width:>5} × {label}",
-                    ok,
-                    f"doc={d['doc']} vw={d['vw']} 溢出元素={d['n']} {d['bad'][:2]}",
-                )
+            sweep(page, width, PUBLIC)
 
-        # 术语提示框：收起时必须 display:none。
-        # 这一条是这次修出来的——原来用 opacity:0 藏，绝对定位的框照样算进滚动溢出，
-        # 414 下对弈页凭空多出一条横向滚动条（doc 473 / vw 414）。
-        # 术语挂在准备页的强度小签与规则说明上，教程页反而没有。
+        # --- 第二轮：注册登录，量六个需要账号的页面 ---
+        with httpx.Client(base_url=BASE, timeout=30, trust_env=False) as c:
+            _, token = new_account(c)
+        login(page, token, "play.html")
+
+        for width in WIDTHS:
+            sweep(page, width, PRIVATE)
+
+        # --- 单独守一次贪心页：它比别的页多两处易崩布局（分值表四栏、棋谱库两栏），
+        # 上面那一轮已经把每档宽度都量过了，这里只把结论挑出来说清楚。 ---
         page.viewport(1440, 900)
         time.sleep(0.5)
-        page.eval("location.hash = '#/play'")
-        time.sleep(0.9)
-        check("准备页带术语标记", page.eval("document.querySelectorAll('.term').length") >= 2,
-              str(page.eval("document.querySelectorAll('.term').length")))
-        check("术语提示框收起时不占版面", page.eval(TIP_DISPLAY % json.dumps(".term")) == "none",
-              str(page.eval(TIP_DISPLAY % json.dumps(".term"))))
-        hover(page, ".term", inside=True)
-        check("悬停时提示框展开", page.eval(TIP_DISPLAY % json.dumps(".term")) == "block",
-              str(page.eval(TIP_DISPLAY % json.dumps(".term"))))
-        hover(page, ".term", inside=False)
-        check("移开后提示框收起", page.eval(TIP_DISPLAY % json.dumps(".term")) == "none")
-
-        # 单独守一次贪心页：它比别的页多两处易崩布局（分值表四栏、棋谱库两栏），
-        # 上面那一轮已经把每档宽度都量过了，这里只把结论挑出来说清楚。
-        page.viewport(1440, 900)
-        time.sleep(0.5)
-        page.eval("location.hash = '#/greedy'")
-        time.sleep(0.9)
+        page.goto(f"{BASE}/greedy.html", wait=1.5)
         check("贪心页分值表不越栏", page.eval(
             "(() => { const t = document.querySelector('.weight-table');"
             " if (!t) return false;"

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>登录 · Gomoku Match</title>
+  <link rel="icon" type="image/webp" href="assets/logo.webp" />
+  <link rel="stylesheet" href="app.css" />
+  <link rel="stylesheet" href="login.css" />
+</head>
+<body class="auth-page">
+  <!-- 落地页同款的视频背景：登录是访客看到的第一屏，风格必须跟首页接上 -->
+  <div class="bg">
+    <video class="bg-video" autoplay muted loop playsinline>
+      <source src="https://motionsites.org/assets/prompt-media/f1862a9c64d125907d30.mp4" type="video/mp4" />
+      <source src="assets/bg.mp4" type="video/mp4" />
+    </video>
+  </div>
+  <main class="auth" id="auth"></main>
+  <script src="app.js" type="module"></script>
+  <script src="pages/login.js" type="module"></script>
+</body>
+</html>
