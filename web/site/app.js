@@ -758,7 +758,7 @@ function buildChrome(user, active) {
       el(
         'a',
         { class: 'brand', href: 'index.html' },
-        el('span', { class: 'brand-logo' }, el('img', { src: 'assets/logo.webp', alt: '', width: '40', height: '40' })),
+        el('span', { class: 'brand-logo' }, el('img', { src: 'assets/logo.svg', alt: '', width: '40', height: '40' })),
         el('span', { class: 'brand-text' }, el('b', {}, 'Gomoku Match')),
       ),
       nav,

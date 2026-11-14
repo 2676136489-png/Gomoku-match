@@ -50,6 +50,23 @@
   text-decoration: none;
 }
 
+.auth-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  flex: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+
+.auth-logo img {
+  width: 80%;
+  height: 80%;
+  display: block;
+}
+
 .auth-wordmark {
   color: #fff;
   font-size: 19px;

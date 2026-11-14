@@ -100,7 +100,7 @@ function render() {
       el(
         'a',
         { class: 'auth-brand', href: 'index.html' },
-        el('img', { src: 'assets/logo.webp', alt: '', width: '44', height: '44' }),
+        el('span', { class: 'auth-logo' }, el('img', { src: 'assets/logo.svg', alt: '', width: '44', height: '44' })),
         el('span', { class: 'auth-wordmark' }, 'Gomoku Match'),
       ),
       el(
