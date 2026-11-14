@@ -77,7 +77,7 @@
 | `play.html` 开局准备 | 选对手、难度、规则、执子；选完提交 |
 | `play.html?game={id}` 对局 | 只有棋盘和右侧三个页签（解说／分析／棋谱），顶部四个操作 |
 | `replay.html` 复盘 | 逐手回看，分析面板在这里 |
-| `greedy.html` 贪心学习 | 看棋谱、喂棋谱、看权重怎么变 |
+| `greedy.html` 贪心学习 | 查看棋谱、上传棋谱、观察权重变化 |
 
 配置与操作分离：难度、规则属于开局前参数，悔棋、提示属于对局中操作。对局结束后「悔棋」会禁用；要重下请开新局，避免已结算的战绩被再记一次。
 
@@ -98,6 +98,10 @@
 --seal: #cf4529;    --jade: #4e9a8f;
 --wood: #dcac5f;    --muted: #a3a3a3;
 ```
+
+**标识为单色五子。** 五子斜线，末子留白；只使用黑、白、灰，不加入彩色强调。矢量文件在 `web/site/assets/logo.svg`，顶栏、登录页与 favicon 共用；选型记录见 [Logo 方案](docs/logo-options.html)。
+
+![Gomoku Match 标识](web/site/assets/logo.svg)
 
 **背景是视频，不是图片。** 首页、登录页与所有内页共用同一段极光视频；`app.js` 的 `mountBackdrop()` 给内页注入 `.bg` 层，`login.html` 自带一层并用查重避免叠两段。视频上叠 `mix-blend-mode: screen` 色层托住暗部，再叠压暗与暗角保证文字对比度；`prefers-reduced-motion` 下隐藏视频，保留静态渐变。
 
@@ -401,11 +405,15 @@ web/site/
   pages/*.js        各页面脚本
   app.css           内页主题
   styles.css        首页主题
-  assets/           背景视频与 logo
+  assets/           背景视频与标识
   fonts/            自托管字体（Inter / Geist Pixel / Bubbledot）
 tests/              六套后端套件
 tools/              run_tests.py、walk_*.py、cdp.py、harness.py、make_corpus.py
 engine/             代码工坊的 C++ 示例模板（沙箱内编译）
+docs/
+  badges/           本地 README 徽章
+  logo-options.html 标识选型记录
+  walk/             浏览器走查截图
 ```
 
 ---
@@ -442,7 +450,7 @@ found.add(frozenset(i for i in four if i != gap))
 
 **引擎在候选排序阶段即滤除禁手点**，判定结果按 `(局面哈希, 落点)` 缓存：迭代加深会反复回到同一局面，不缓存时该步骤开销高出一个数量级。代价是深度 5 单次搜索由 1.2s 增至 1.9s；收益是不再将禁手点作为进攻手段——同一局面下，未做过滤的版本会给出 899 万分的「必胜」判定，实际为三步后的长连禁手。
 
-**落点价值采用增量评分**，不做整盘重算：每落一子只更新受影响的四条线及其棋形。`shapes.py` 中「再补一子会变成什么」的判定由搜索、学习模式、局面分析与可学习贪心四处共用——同一套棋形识别，喂给不同的决策器。
+**落点价值采用增量评分**，不做整盘重算：每落一子只更新受影响的四条线及其棋形。`shapes.py` 中「再补一子会变成什么」的判定由搜索、学习模式、局面分析与可学习贪心四处共用——同一套棋形识别，供不同决策器使用。
 
 ### 神经网络策略的边界
 

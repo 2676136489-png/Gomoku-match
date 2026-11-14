@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Logo 方案 · Gomoku Match</title>
+  <style>
+    @font-face {
+      font-family: "Inter";
+      src: url("../web/site/fonts/inter-var-latin.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    :root {
+      --bg: #050507;
+      --panel: rgba(13, 14, 19, 0.72);
+      --line: rgba(255, 255, 255, 0.09);
+      --text: #f5f7f7;
+      --muted: #a3a3a3;
+      --dim: #7c7c84;
+      --ink: #0b0b0d;
+      --white: #f5f7f7;
+      --gray: #8f979b;
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { margin: 0; min-height: 100%; }
+
+    body {
+      background:
+        radial-gradient(900px 620px at 12% 8%, rgba(150, 170, 185, 0.10), transparent 62%),
+        radial-gradient(820px 680px at 88% 18%, rgba(255, 255, 255, 0.05), transparent 62%),
+        radial-gradient(760px 520px at 50% 105%, rgba(120, 140, 155, 0.08), transparent 64%),
+        var(--bg);
+      color: var(--text);
+      font-family: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+      background-size: 48px 48px;
+      -webkit-mask-image: radial-gradient(circle at 50% 35%, #000 20%, transparent 78%);
+      mask-image: radial-gradient(circle at 50% 35%, #000 20%, transparent 78%);
+    }
+
+    .wrap {
+      position: relative;
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 56px 0 140px;
+    }
+
+    .hero { margin-bottom: 30px; }
+
+    h1 {
+      font-size: clamp(32px, 4.2vw, 54px);
+      line-height: 1.12;
+      letter-spacing: -0.025em;
+      margin: 0 0 10px;
+      font-weight: 600;
+    }
+
+    .lede {
+      color: var(--muted);
+      max-width: 640px;
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .option {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      cursor: pointer;
+      transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+      backdrop-filter: blur(18px) saturate(1.2);
+      -webkit-backdrop-filter: blur(18px) saturate(1.2);
+    }
+
+    .option:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .option:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.65);
+      outline-offset: 3px;
+    }
+
+    .option.is-selected {
+      border-color: rgba(255, 255, 255, 0.55);
+      background: rgba(255, 255, 255, 0.055);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 18px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    .option-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .num {
+      flex: none;
+      padding-top: 3px;
+      color: var(--dim);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.08em;
+    }
+
+    .copy h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+
+    .copy p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .tile {
+      aspect-ratio: 1;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .tile.dark {
+      background: radial-gradient(circle at 50% 35%, #1a1b22, #0b0c10 72%);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .tile.light {
+      background: #f1f2ee;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .tile .mark { width: 64%; height: 64%; }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .sizes {
+      display: flex;
+      align-items: flex-end;
+      gap: 14px;
+    }
+
+    .size {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .size .mark { display: block; }
+
+    .size em {
+      color: var(--dim);
+      font-style: normal;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+    }
+
+    .bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .bar .mark { width: 24px; height: 24px; }
+
+    .selectbar {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: fit-content;
+      margin: 0;
+      padding: 10px 12px 10px 18px;
+      border-radius: 999px;
+      background: rgba(9, 10, 14, 0.84);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+    }
+
+    .selectbar-label {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .selectbar b {
+      min-width: 88px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .selectbar button {
+      border: 0;
+      border-radius: 999px;
+      background: var(--white);
+      color: var(--ink);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: background 0.18s ease;
+    }
+
+    .selectbar button:hover { background: #fff; }
+
+    .note {
+      margin: 28px 0 0;
+      color: var(--dim);
+      font-size: 12px;
+    }
+
+    @media (max-width: 760px) {
+      .wrap {
+        width: min(100% - 24px, 680px);
+        padding: 32px 0 160px;
+      }
+      .grid { grid-template-columns: 1fr; }
+      .selectbar {
+        left: 12px;
+        right: 12px;
+        width: auto;
+        justify-content: space-between;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 8 个单色方案：64×64 画布，无彩色点缀，兼顾 16px favicon -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <!-- 01 五子：五子斜线，末子留白 -->
+      <symbol id="mark-01" viewBox="0 0 64 64">
+        <line x1="10" y1="54" x2="54" y2="10" stroke="#8f979b" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+        <circle cx="12" cy="52" r="5.2" fill="#0b0b0d" stroke="#f5f7f7" stroke-width="1.4"/>
+        <circle cx="22" cy="42" r="5.2" fill="#f5f7f7" stroke="#0b0b0d" stroke-width="1.4"/>
+        <circle cx="32" cy="32" r="5.2" fill="#0b0b0d" stroke="#f5f7f7" stroke-width="1.4"/>
+        <circle cx="42" cy="22" r="5.2" fill="#f5f7f7" stroke="#0b0b0d" stroke-width="1.4"/>
+        <circle cx="52" cy="12" r="5.6" fill="none" stroke="#8f979b" stroke-width="2.4"/>
+      </symbol>
+
+      <!-- 02 天元：星位一子，最简识别 -->
+      <symbol id="mark-02" viewBox="0 0 64 64">
+        <g stroke="#8f979b" stroke-width="1.2" opacity="0.32">
+          <path d="M16 8v48M32 8v48M48 8v48M8 16h48M8 32h48M8 48h48"/>
+        </g>
+        <circle cx="32" cy="32" r="8.5" fill="#f5f7f7" stroke="#0b0b0d" stroke-width="2.2"/>
+      </symbol>
+
+      <!-- 03 交叉：十字交叉，黑白一子 -->
+      <symbol id="mark-03" viewBox="0 0 64 64">
+        <g stroke="#8f979b" stroke-width="2.1" opacity="0.45">
+          <path d="M32 6v52M6 32h52"/>
+        </g>
+        <circle cx="32" cy="32" r="8.5" fill="#f5f7f7" stroke="#0b0b0d" stroke-width="2.2"/>
+        <circle cx="44" cy="20" r="4.8" fill="#0b0b0d" stroke="#f5f7f7" stroke-width="1.4"/>
+      </symbol>
+
+      <!-- 04 落子：一子入盘，弧线示意 -->
+      <symbol id="mark-04" viewBox="0 0 64 64">
+        <g stroke="#8f979b" stroke-width="1.4" opacity="0.2">
+          <path d="M20 8v48M32 8v48M44 8v48M8 20h48M8 32h48M8 44h48"/>
+        </g>
+        <path d="M12 48c9-3 15-13 20-26" fill="none" stroke="#8f979b" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
+        <circle cx="33" cy="33" r="13.5" fill="#f5f7f7" stroke="#0b0b0d" stroke-width="2.2"/>
+      </symbol>
+
+      <!-- 05 棋印：方印五子，单色留白 -->
+      <symbol id="mark-05" viewBox="0 0 64 64">
+        <rect x="6" y="6" width="52" height="52" rx="14" fill="#f5f7f7" stroke="#0b0b0d" stroke-width="2"/>
+        <g fill="#0b0b0d">
+          <circle cx="18" cy="46" r="2.8"/>
+          <circle cx="25" cy="39" r="2.8"/>
+          <circle cx="32" cy="32" r="2.8"/>
+          <circle cx="39" cy="25" r="2.8"/>
+        </g>
+        <circle cx="46" cy="18" r="2.8" fill="#0b0b0d"/>
+      </symbol>
+
+      <!-- 06 连珠：五子折线，末点空心 -->
+      <symbol id="mark-06" viewBox="0 0 64 64">
+        <path d="M12 46l10-12 10 8 10-16 10-10" fill="none" stroke="#8f979b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+        <circle cx="12" cy="46" r="4.8" fill="#0b0b0d" stroke="#f5f7f7" stroke-width="1.3"/>
+        <circle cx="22" cy="34" r="4.8" fill="#f5f7f7" stroke="#0b0b0d" stroke-width="1.3"/>
+        <circle cx="32" cy="42" r="4.8" fill="#0b0b0d" stroke="#f5f7f7" stroke-width="1.3"/>
+        <circle cx="42" cy="26" r="4.8" fill="#f5f7f7" stroke="#0b0b0d" stroke-width="1.3"/>
+        <circle cx="52" cy="16" r="5.2" fill="none" stroke="#8f979b" stroke-width="2.2"/>
+      </symbol>
+
+      <!-- 07 双石：黑白相叠，灰点为界 -->
+      <symbol id="mark-07" viewBox="0 0 64 64">
+        <g stroke="#8f979b" stroke-width="1.2" opacity="0.2">
+          <path d="M32 8v48M8 32h48"/>
+        </g>
+        <circle cx="26" cy="32" r="14" fill="#0b0b0d" stroke="#f5f7f7" stroke-width="2.2"/>
+        <circle cx="38" cy="32" r="14" fill="#f5f7f7" stroke="#0b0b0d" stroke-width="2.2"/>
+        <circle cx="32" cy="32" r="3" fill="#8f979b"/>
+      </symbol>
+
+      <!-- 08 胜线：双色斜线穿过五子 -->
+      <symbol id="mark-08" viewBox="0 0 64 64">
+        <g stroke="#8f979b" stroke-width="1.2" opacity="0.2">
+          <path d="M20 8v48M32 8v48M44 8v48M8 20h48M8 32h48M8 44h48"/>
+        </g>
+        <line x1="12" y1="52" x2="52" y2="12" stroke="#f5f7f7" stroke-width="7" stroke-linecap="round"/>
+        <line x1="12" y1="52" x2="52" y2="12" stroke="#0b0b0d" stroke-width="3" stroke-linecap="round"/>
+        <g fill="#0b0b0d" stroke="#f5f7f7" stroke-width="1">
+          <circle cx="14" cy="50" r="2.8"/>
+          <circle cx="23.5" cy="40.5" r="2.8"/>
+          <circle cx="33" cy="31" r="2.8"/>
+          <circle cx="42.5" cy="21.5" r="2.8"/>
+          <circle cx="52" cy="12" r="2.8"/>
+        </g>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div class="wrap">
+    <header class="hero">
+      <h1>Logo 方案</h1>
+      <p class="lede">8 个单色方向，无彩色点缀；均为 64×64 矢量，兼顾 16px favicon。点击卡片选择方案，按编号反馈。</p>
+    </header>
+
+    <main class="grid" id="grid"></main>
+
+    <div class="selectbar" role="status" aria-live="polite">
+      <span class="selectbar-label">已选</span>
+      <b id="selected">—</b>
+      <button id="copy" type="button">复制编号</button>
+    </div>
+
+    <p class="note">当前站点已采用方案 01；本页保留为选型记录。</p>
+  </div>
+
+  <script>
+    const OPTIONS = [
+      { id: "01", name: "五子", desc: "五子斜线，末子留白。", symbol: "mark-01" },
+      { id: "02", name: "天元", desc: "星位一子，最简识别。", symbol: "mark-02" },
+      { id: "03", name: "交叉", desc: "十字交叉，黑白一子。", symbol: "mark-03" },
+      { id: "04", name: "落子", desc: "一子入盘，弧线示意。", symbol: "mark-04" },
+      { id: "05", name: "棋印", desc: "方印五子，单色留白。", symbol: "mark-05" },
+      { id: "06", name: "连珠", desc: "五子折线，末点空心。", symbol: "mark-06" },
+      { id: "07", name: "双石", desc: "黑白相叠，灰点为界。", symbol: "mark-07" },
+      { id: "08", name: "胜线", desc: "双色斜线穿过五子。", symbol: "mark-08" },
+    ];
+
+    function mark(symbol, size) {
+      return `<svg class="mark" viewBox="0 0 64 64" style="width:${size};height:${size}" aria-hidden="true"><use href="#${symbol}"></use></svg>`;
+    }
+
+    function card(item) {
+      return `
+        <article class="option" data-id="${item.id}" data-name="${item.name}" tabindex="0" role="button" aria-pressed="false">
+          <div class="option-top">
+            <span class="num">${item.id}</span>
+            <div class="copy"><h2>${item.name}</h2><p>${item.desc}</p></div>
+          </div>
+          <div class="stage">
+            <div class="tile dark">${mark(item.symbol, "64%")}</div>
+            <div class="tile light">${mark(item.symbol, "64%")}</div>
+          </div>
+          <div class="meta">
+            <div class="sizes">
+              <span class="size">${mark(item.symbol, "32px")}<em>32</em></span>
+              <span class="size">${mark(item.symbol, "20px")}<em>20</em></span>
+              <span class="size">${mark(item.symbol, "16px")}<em>16</em></span>
+            </div>
+            <div class="bar">${mark(item.symbol, "24px")}<span>Gomoku Match</span></div>
+          </div>
+        </article>`;
+    }
+
+    const grid = document.getElementById("grid");
+    grid.innerHTML = OPTIONS.map(card).join("");
+
+    const cards = Array.from(document.querySelectorAll(".option"));
+    const selectedLabel = document.getElementById("selected");
+    const copyBtn = document.getElementById("copy");
+    let selected = "";
+
+    function choose(target) {
+      selected = target.dataset.id;
+      cards.forEach((item) => {
+        const active = item === target;
+        item.classList.toggle("is-selected", active);
+        item.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+      selectedLabel.textContent = `${target.dataset.id} · ${target.dataset.name}`;
+    }
+
+    cards.forEach((item) => {
+      item.addEventListener("click", () => choose(item));
+      item.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          choose(item);
+        }
+      });
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      if (!selected) return;
+      try {
+        await navigator.clipboard.writeText(selected);
+      } catch {
+        /* 剪贴板不可用时仍显示已选编号 */
+      }
+      const original = copyBtn.textContent;
+      copyBtn.textContent = "已复制";
+      setTimeout(() => { copyBtn.textContent = original; }, 1200);
+    });
+  </script>
+</body>
+</html>
