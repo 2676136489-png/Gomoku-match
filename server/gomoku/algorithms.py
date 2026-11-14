@@ -27,37 +27,35 @@ from .search import Searcher
 ALGORITHMS = {
     "random": {
         "label": "随机",
-        "brief": "在合法点里随机选。它的作用是当基线：任何算法打不过它，就说明实现有问题。",
+        "brief": "合法点随机选",
         "tag": "基线",
         "search": False,
         "speed": "即时",
     },
     "greedy": {
         "label": "贪心",
-        "brief": "只评估当前这一手的棋形得分，己方进攻分加对手同点的防守分。看得见当下，看不见两步之后。",
+        "brief": "当前手棋形分",
         "tag": "无搜索",
         "search": False,
         "speed": "约 10 ms",
     },
     "tuned": {
         "label": "学习型贪心",
-        "brief": "和贪心同一套评分公式，但棋形分值不是手写的——先从内置棋谱里学，"
-        "再随时喂新棋谱继续学。没有搜索，纯评估，所以能直接看出「评估值多少钱」。",
+        "brief": "棋谱训练后的棋形分",
         "tag": "学习",
         "search": False,
         "speed": "约 15 ms",
     },
     "minimax": {
         "label": "极小化极大",
-        "brief": "negamax + alpha-beta + 置换表 + 迭代加深。会算对手的应手，所以能发现两步杀。",
+        "brief": "搜索对手应手",
         "tag": "搜索",
         "search": True,
         "speed": "0.3–3.5 s",
     },
     "neural": {
         "label": "神经网络",
-        "brief": "三层全连接给候选点打分，权重来自以搜索为教师的自对弈蒸馏；选定 Top-K 后逐点试下、"
-        "再用网络评估对手最强应手，取净价值最高的一手。",
+        "brief": "网络评分 + 对手应手",
         "tag": "学习",
         "search": True,
         "speed": "约 60 ms",

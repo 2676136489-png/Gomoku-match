@@ -25,7 +25,7 @@ async function renderLibrary() {
     const rows = res.rows || []
     head.querySelector('.pill').textContent = `${rows.length} 局`
     if (!rows.length) {
-      body.append(el('p', { class: 'empty-note' }, '暂无对局记录，完成一局后显示。'))
+      body.append(el('p', { class: 'empty-note' }, '暂无对局记录'))
       return
     }
     const table = el('table', { class: 'replay-table' },
@@ -61,11 +61,11 @@ const VERDICT = {
   ban: { label: '禁手', tone: 'ban' },
 }
 const KIND_LABEL = {
-  shape: '棋形', defence: '兼顾防守', miss: '漏着', save: '救急', winrate: '胜率', alternative: '备选',
+  shape: '棋形', defence: '防守', miss: '漏着', save: '防守', winrate: '胜率', alternative: '备选',
 }
 const SHAPES = ['活二', '眠三', '活三', '冲四', '活四', '连五']
 const CONFIDENCE_LABEL = { certain: '确定', high: '高', medium: '中', low: '低' }
-const SOURCE_LABEL = { tactical: '战术判定', model: '标定模型' }
+const SOURCE_LABEL = { tactical: '战术', model: '模型' }
 
 class ReplayPlayer {
   constructor(main, gameId) {
@@ -84,8 +84,9 @@ class ReplayPlayer {
 
   build() {
     this.main.innerHTML = ''
+    this.meta = el('p', {})
     this.head = el('section', { class: 'page-head' },
-      el('div', {}, el('h2', {}, '复盘'), el('p', {}, '')),
+      el('div', {}, el('h2', {}, '复盘'), this.meta),
       el('div', { class: 'actions' },
         el('button', { class: 'btn', type: 'button', onclick: () => (window.location.href = 'replay.html') }, '棋谱库')))
     this.boardHolder = el('div')
@@ -192,7 +193,7 @@ class ReplayPlayer {
 
   async load() {
     this.main.innerHTML = ''
-    this.main.append(spinner('正在读取棋谱…'))
+    this.main.append(spinner('加载中…'))
     try {
       const res = await api.replay(this.gameId)
       this.game = res.game
@@ -201,7 +202,7 @@ class ReplayPlayer {
       this.index = 0
       const g = this.game
       const meta = `${MODE_TEXT[g.mode] || g.mode} · ${g.rule_label} · ${(g.moves || []).length} 手 · ${g.status === 'finished' ? g.result_reason || '已结束' : '进行中'}`
-      this.head.querySelector('p').textContent = meta
+      this.meta.textContent = meta
       this.render()
       api.insight(this.gameId).then((data) => {
         this.insight = data
@@ -271,7 +272,7 @@ class ReplayPlayer {
   renderMoves() {
     const moves = this.moves
     const panel = el('section', { class: 'panel' },
-      el('div', { class: 'panel-head' }, el('h2', {}, '全部落子'), el('span', { class: 'panel-note' }, '← → 翻手，空格播放')))
+      el('div', { class: 'panel-head' }, el('h2', {}, '全部落子')))
     const feed = el('div', { class: 'game-feed' })
     moves.forEach((move, i) => {
       feed.append(
@@ -285,7 +286,7 @@ class ReplayPlayer {
           el('span', { class: 'feed-pos' }, `${String.fromCharCode(65 + move.x)}${15 - move.y}`),
           el('span', { class: 'feed-ms' }, move.comment || '')))
     })
-    if (!moves.length) feed.append(el('p', { class: 'empty-note' }, '本局没有落子记录。'))
+    if (!moves.length) feed.append(el('p', { class: 'empty-note' }, '暂无落子'))
     panel.append(feed)
     this.movesPanel.innerHTML = ''
     this.movesPanel.append(panel)
@@ -303,7 +304,7 @@ class ReplayPlayer {
       holder.append(chart)
       this.buildChart(chart, series)
     } else {
-      holder.append(el('p', { class: 'empty-note' }, '这局没有胜率数据。'))
+      holder.append(el('p', { class: 'empty-note' }, '暂无数据'))
     }
 
     holder.append(this.buildInsightPanel())
@@ -367,7 +368,7 @@ class ReplayPlayer {
           swing > 0 ? el('span', { class: 'wr-swing-note' }, `转折 第 ${pts[swing].row.ply} 手 ${(swingDelta * 100).toFixed(0)} 点`) : null,
           el('span', {}, `第 ${series.length} 手`)),
         swing > 0
-          ? el('button', { class: 'wr-jump', type: 'button', onclick: () => { this.stopPlay(); this.setIndex(swing); this.tab = 'analysis'; this.renderTabs() } }, `看第 ${pts[swing].row.ply} 手怎么走的`)
+          ? el('button', { class: 'wr-jump', type: 'button', onclick: () => { this.stopPlay(); this.setIndex(swing); this.tab = 'analysis'; this.renderTabs() } }, `查看第 ${pts[swing].row.ply} 手`)
           : null))
   }
 
@@ -383,7 +384,7 @@ class ReplayPlayer {
       $$('.an-tab', tabs).forEach((b) => b.classList.toggle('is-active', b.dataset.an === this.anTab))
       body.innerHTML = ''
       if (!insight) {
-        body.append(el('p', { class: 'empty-note' }, '等待局面数据…'))
+        body.append(el('p', { class: 'empty-note' }, '暂无数据'))
         return
       }
       if (this.anTab === 'rate') this.buildRate(insight, body)
@@ -399,7 +400,7 @@ class ReplayPlayer {
 
   buildRate(insight, body) {
     const win = insight.winrate
-    if (!win) { body.append(el('p', { class: 'empty-note' }, '胜率数据还没有就绪。')); return }
+    if (!win) { body.append(el('p', { class: 'empty-note' }, '暂无数据')); return }
     const p = win.human ?? 0.5
     const pct = (p * 100).toFixed(1)
     body.append(
@@ -417,17 +418,16 @@ class ReplayPlayer {
             el('div', { class: 'fact-head' }, el('b', {}, (f.mine || 0).toLocaleString()), el('span', {}, f.label), el('b', {}, (f.theirs || 0).toLocaleString())),
             el('div', { class: 'fact-track' }, el('span', { class: 'fact-mine', style: `width:${left.toFixed(1)}%` })))
         })),
-      el('p', { class: 'an-foot' }, '左右两侧是黑棋和白棋的量，中间那条线是两者相等的位置。',
-        win.confidence_note ? ` ${win.confidence_note}。` : ''),
     )
+    if (win.confidence_note) body.append(el('p', { class: 'an-foot' }, win.confidence_note))
   }
 
   buildPredict(insight, body) {
     const pred = insight.prediction
     body.append(el('p', { class: 'pred-head' },
       insight.status === 'playing'
-        ? `${pred && pred.side === 1 ? '黑棋' : '白棋'}下一步最可能落在这几个点。份额表示候选池内的相对倾向，不是统计概率。`
-        : '对局已结束，没有待预测的一手。'))
+        ? `${pred && pred.side === 1 ? '黑棋' : '白棋'}下一手候选点`
+        : '对局已结束'))
     const points = (pred && pred.points) || []
     if (points.length) {
       const list = el('ol', { class: 'pred-list' })
@@ -443,17 +443,17 @@ class ReplayPlayer {
       })
       body.append(list)
     } else {
-      body.append(el('p', { class: 'empty-note' }, '无可落子点。'))
+      body.append(el('p', { class: 'empty-note' }, '暂无候选点'))
     }
   }
 
   buildData(insight, body) {
     const census = insight.census
     const model = insight.model
-    if (!census) { body.append(el('p', { class: 'empty-note' }, '盘面数据还没有就绪。')); return }
+    if (!census) { body.append(el('p', { class: 'empty-note' }, '暂无数据')); return }
     body.append(
       el('div', { class: 'data-block' },
-        el('div', { class: 'data-title' }, el('span', {}, '棋形分布'), el('em', {}, '每个空点若被该色占据，能形成的最强棋形')),
+        el('div', { class: 'data-title' }, el('span', {}, '棋形分布')),
         el('div', { class: 'shape-rows' },
           SHAPES.map((name) => {
             const b = (census.shapes.black[name] ?? 0)
@@ -466,7 +466,7 @@ class ReplayPlayer {
               el('span', { class: 'shape-num' }, `${b} / ${w}`))
           }))),
       el('div', { class: 'data-block' },
-        el('div', { class: 'data-title' }, el('span', {}, '可数项'), el('em', {}, '都能在棋盘上数出来')),
+        el('div', { class: 'data-title' }, el('span', {}, '可数项')),
         el('dl', { class: 'data-grid' },
           el('div', {}, el('dt', {}, '棋子'), el('dd', {}, `${census.stones.black} / ${census.stones.white}`)),
           el('div', {}, el('dt', {}, '棋形总量'), el('dd', {}, `${census.material.black.toLocaleString()} / ${census.material.white.toLocaleString()}`)),
@@ -478,7 +478,7 @@ class ReplayPlayer {
       body.append(
         el('div', { class: 'data-block' },
           el('div', { class: 'data-title' }, el('span', {}, '模型可靠性'),
-            el('em', {}, `${model.games ? `${model.games} 局自对弈标定` : '手写兜底权重'} · AUC ${model.auc ?? '—'}`)),
+            el('em', {}, `${model.games ? `${model.games} 局标定` : '默认权重'} · AUC ${model.auc ?? '—'}`)),
           el('div', { class: 'rel-table' },
             el('div', { class: 'rel-head' }, el('span', {}, '预测区间'), el('span', {}, '样本'), el('span', {}, '实际')),
             model.buckets.map((b) =>
@@ -492,8 +492,8 @@ class ReplayPlayer {
     const data = this.explain
     if (!data) {
       return el('section', { class: 'panel panel-explain is-empty' },
-        el('div', { class: 'panel-head' }, el('h2', {}, '本手解说'), el('span', { class: 'panel-note' }, '点击棋谱中任意一手')),
-        el('p', { class: 'empty-note' }, '停在某一手时，这里给出那一手的解说。'))
+        el('div', { class: 'panel-head' }, el('h2', {}, '本手解说')),
+        el('p', { class: 'empty-note' }, '暂无解说'))
     }
     const v = VERDICT[data.verdict] || VERDICT.neutral
     const before = data.winrate.before * 100
@@ -505,7 +505,6 @@ class ReplayPlayer {
         el('h2', {}, `第 ${(data.index ?? 0) + 1} 手`),
         el('span', { class: 'panel-note' }, `${data.color === 1 ? '黑' : '白'}棋 ${data.x},${data.y}${data.think_ms > 0 ? ` · ${data.think_ms}ms` : ''}`)),
       el('div', { class: 'ex-head' }, el('span', { class: `ex-verdict tone-${v.tone}` }, v.label), el('b', {}, data.headline)),
-      el('p', { class: 'ex-narrative' }, data.narrative),
       el('ul', { class: 'ex-facts' },
         (data.facts || []).map((f) => el('li', { className: `kind-${f.kind}` },
           el('span', { class: 'ex-kind' }, KIND_LABEL[f.kind] || f.kind), el('span', {}, f.text)))),
@@ -519,7 +518,7 @@ class ReplayPlayer {
     )
     if (data.alternatives && data.alternatives.length) {
       card.append(el('div', { class: 'ex-alts' },
-        el('div', { class: 'ex-alts-head' }, '当时的其他候选'),
+        el('div', { class: 'ex-alts-head' }, '其他候选'),
         el('ul', {}, data.alternatives.map((a) => el('li', {},
           el('span', { class: 'coord' }, `${a.x},${a.y}`), el('span', {}, a.why))))))
     }

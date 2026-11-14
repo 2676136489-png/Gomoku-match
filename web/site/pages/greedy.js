@@ -99,7 +99,7 @@ function renderCarousel() {
   if (!holder) return
   holder.innerHTML = ''
   if (!item) {
-    holder.append(el('p', { class: 'empty-note' }, '棋谱库是空的，先上传一盘。'))
+    holder.append(el('p', { class: 'empty-note' }, '暂无棋谱'))
     return
   }
   const total = (item.moves || []).length
@@ -191,7 +191,7 @@ function render() {
     state.training ? '训练中…' : trained ? '重新学习' : '开始学习')
   const stageNode = el('p', { className: `greedy-stage ${state.training ? 'is-live' : ''}` },
     state.training ? el('span', { class: 'spinner' }) : null,
-    state.stage || (trained ? '已加载上次训练结果' : '尚未训练，当前等同手写分值表'))
+    state.stage || (trained ? '已加载训练结果' : '未训练'))
   node.trainBtn = trainBtn
   node.stageNode = stageNode
 
@@ -217,20 +217,19 @@ function render() {
     el('div', { class: 'metric-grid' },
       el('div', { class: 'metric' }, el('span', {}, '实着命中率'),
         el('b', {}, evalAfter ? pct(evalAfter.top1) : '—'),
-        el('em', {}, evalBefore ? `训练前 ${pct(evalBefore.top1)}` : '还没训练')),
+        evalBefore ? el('em', {}, `训练前 ${pct(evalBefore.top1)}`) : null),
       el('div', { class: 'metric' }, el('span', {}, '前三命中'),
         el('b', {}, evalAfter ? pct(evalAfter.top3) : '—'),
-        el('em', {}, evalBefore ? `训练前 ${pct(evalBefore.top3)}` : '取候选前 3')),
+        evalBefore ? el('em', {}, `训练前 ${pct(evalBefore.top3)}`) : null),
       el('div', { class: 'metric' }, el('span', {}, '平均排名'),
         el('b', {}, evalAfter ? evalAfter.rank.toFixed(2) : '—'),
-        el('em', {}, evalBefore ? `训练前 ${evalBefore.rank.toFixed(2)}` : '越小越准')),
+        evalBefore ? el('em', {}, `训练前 ${evalBefore.rank.toFixed(2)}`) : null),
       el('div', { class: 'metric' }, el('span', {}, '防守系数 α'),
-        el('b', {}, (model && model.alpha ? model.alpha.toFixed(2) : '0.90')),
-        el('em', {}, '手写方案是 0.90'))))
+        el('b', {}, (model && model.alpha ? model.alpha.toFixed(2) : '0.90')))))
 
   // 分值表
   const weightPanel = el('section', { class: 'panel greedy-weights' },
-    el('div', { class: 'panel-head' }, el('h2', {}, '棋形分值表'), el('span', { class: 'panel-note' }, '灰＝手写　朱＝学到（取对数画长度）')),
+    el('div', { class: 'panel-head' }, el('h2', {}, '棋形分值表')),
     el('div', { class: 'weight-legend' },
       el('span', {}, el('i', { class: 'swatch swatch-hand' }), '手写'),
       el('span', {}, el('i', { class: 'swatch swatch-learn' }), '学到')),
@@ -305,7 +304,7 @@ function renderCorpusList() {
     }
     list.append(li)
   })
-  if (!state.items.length) list.append(el('li', { class: 'empty-note' }, '还没有棋谱。'))
+  if (!state.items.length) list.append(el('li', { class: 'empty-note' }, '暂无棋谱'))
 }
 
 function renderUploadZone() {
@@ -313,11 +312,11 @@ function renderUploadZone() {
   zone.innerHTML = ''
   zone.append(
     el('b', {}, '拖入棋谱文件'),
-    el('span', {}, `.sgf / .txt / .json，最大 ${MAX_TEXT / 1024} KB`),
+    el('span', {}, `SGF / TXT / JSON · 最大 ${MAX_TEXT / 1024} KB`),
     el('button', { class: 'btn', type: 'button', disabled: state.uploading, onclick: () => node.fileInput.click() },
-      state.uploading ? '解析中…' : '选择文件'),
+      state.uploading ? '上传中…' : '选择文件'),
     el('button', { class: 'linkish', type: 'button', onclick: () => { state.pasteOpen = !state.pasteOpen; renderPaste() } },
-      state.pasteOpen ? '收起' : '或者直接粘贴文本'),
+      state.pasteOpen ? '收起' : '粘贴文本'),
   )
   zone.addEventListener('dragover', (e) => {
     e.preventDefault()
@@ -336,11 +335,11 @@ function renderPaste() {
   const slot = node.pasteSlot
   slot.innerHTML = ''
   if (!state.pasteOpen) return
-  const nameInput = el('input', { class: 'input', placeholder: '给这盘棋起个名字', maxLength: 40, value: state.pasteName })
+  const nameInput = el('input', { class: 'input', placeholder: '棋谱名称', maxLength: 40, value: state.pasteName })
   nameInput.addEventListener('input', () => { state.pasteName = nameInput.value })
   const textArea = el('textarea', { class: 'textarea', rows: 5, placeholder: '(;GM[1]SZ[15];B[hh];W[hi]…)\n或者：H8 H9 I9 G9 …\n或者：[7,7] [8,8] …' })
   textArea.value = state.pasteText
-  const submitBtn = el('button', { class: 'btn btn-primary', type: 'button', disabled: state.uploading || !state.pasteText.trim(), onclick: () => upload(state.pasteName, state.pasteText) }, '解析并入库')
+  const submitBtn = el('button', { class: 'btn btn-primary', type: 'button', disabled: state.uploading || !state.pasteText.trim(), onclick: () => upload(state.pasteName, state.pasteText) }, '上传棋谱')
   // 没有 React 的重渲染替我们把按钮点亮：文本一变就得自己更新 disabled，
   // 否则粘贴完按钮永远是灰的，粘贴入库这条路走不通
   textArea.addEventListener('input', () => {

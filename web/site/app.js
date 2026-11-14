@@ -73,8 +73,8 @@ async function readError(res) {
   if (!type.includes('json')) {
     // 云端网关会用自己的 HTML 页顶掉应用的响应
     const html = await res.text().catch(() => '')
-    if (html.includes('WAF拦截页面')) return '请求被云端防火墙拦下了，换个写法或稍后重试'
-    if (html.includes('链接不完整')) return '分享链接不完整，请用带 sharecode 的原始链接打开'
+    if (html.includes('WAF拦截页面')) return '请求被安全策略拦截，请稍后重试'
+    if (html.includes('链接不完整')) return '分享链接无效，请使用完整链接'
     return message
   }
   try {
@@ -759,7 +759,7 @@ function buildChrome(user, active) {
         'a',
         { class: 'brand', href: 'index.html' },
         el('span', { class: 'brand-logo' }, el('img', { src: 'assets/logo.webp', alt: '', width: '40', height: '40' })),
-        el('span', { class: 'brand-text' }, el('b', {}, 'Gomoku Match'), el('i', {}, 'Intelligence Designed To Evolve')),
+        el('span', { class: 'brand-text' }, el('b', {}, 'Gomoku Match')),
       ),
       nav,
     ),
@@ -778,7 +778,7 @@ function buildChrome(user, active) {
         style: `--i:${i}`,
       }, item.label),
     ),
-    el('a', { class: 'menu-signin', style: `--i:${NAV_ITEMS.length}`, href: 'login.html', onclick: doLogout }, '退出登录'),
+    el('a', { class: 'menu-signin', style: `--i:${NAV_ITEMS.length}`, href: 'login.html', onclick: doLogout }, '退出'),
   )
 
   mount.append(header, overlay, menu)
@@ -846,7 +846,6 @@ function landscapeHint() {
     'div',
     { class: 'landscape-hint', 'aria-hidden': 'true' },
     el('b', {}, '请竖屏使用'),
-    el('span', {}, '棋盘与信息栏按竖屏排布，横过来会挤在一起'),
   )
   const update = () => {
     const narrow = window.matchMedia('(max-width: 900px)').matches

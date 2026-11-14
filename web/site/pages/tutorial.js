@@ -11,7 +11,7 @@ let active = ''
 
 async function load() {
   const root = document.getElementById('main')
-  root.append(spinner('加载教程…'))
+  root.append(spinner('加载中…'))
   try {
     data = await api.tutorial()
     active = data.chapters[0] ? data.chapters[0].id : ''

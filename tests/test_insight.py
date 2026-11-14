@@ -242,7 +242,7 @@ def test_analyze() -> None:
         str(out["winrate"]),
     )
     check("给出中文结论", "连五" in out["headline"], out["headline"])
-    check("叙述包含结论与理由", out["narrative"].startswith("黑棋这一手") and len(out["narrative"]) > 20)
+    check("叙述包含结论", out["narrative"].startswith("黑棋这一手") and out["headline"] in out["narrative"], out["narrative"])
     # 落子前成五点就在那儿了，所以 before 本来就是 1.0——这一手只是把它兑现
     check("落子前局面已经是必胜", out["winrate"]["before"] == 1.0, str(out["winrate"]["before"]))
 

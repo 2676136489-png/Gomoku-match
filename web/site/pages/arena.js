@@ -94,7 +94,7 @@ function render() {
         onclick: () => { state.rule = r.rule ?? r.key; render() } }, r.label)))
 
   const runBtn = el('button', { class: 'btn btn-primary', type: 'button', onclick: run, disabled: state.running },
-    state.running ? '对局进行中…' : '开始对局')
+    state.running ? '对弈中…' : '开始对局')
   node.runBtn = runBtn
 
   const tallySlot = el('div', { class: 'arena-tally' })
@@ -187,7 +187,7 @@ function renderLog() {
   const slot = node.logSlot
   slot.innerHTML = ''
   if (!state.moves.length) {
-    slot.append(el('p', { class: 'empty-note' }, '暂无对局记录。'))
+    slot.append(el('p', { class: 'empty-note' }, '暂无记录'))
     return
   }
   slot.append(

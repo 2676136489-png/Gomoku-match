@@ -104,9 +104,9 @@ def config() -> dict:
         "capabilities": lab.capabilities(),
         "net": net.get_net().describe(),
         "modes": [
-            {"key": "agent", "label": "AI 对弈", "brief": "三档共用一套搜索算法；本档由大模型在候选落点中择一，模型未启用时算法自选。"},
-            {"key": "learn", "label": "学习模式", "brief": "对手决策与 AI 对弈相同，每手附一条按棋规生成的教练点评；点评不调用模型。"},
-            {"key": "engine", "label": "纯引擎", "brief": "仅由搜索算法决策，全程不调用模型、无点评；作为对照组。"},
+            {"key": "agent", "label": "AI 对弈", "brief": "模型在候选中选择落点"},
+            {"key": "learn", "label": "学习模式", "brief": "每手附棋形点评"},
+            {"key": "engine", "label": "纯引擎", "brief": "仅由搜索算法决策"},
         ],
     }
 

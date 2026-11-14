@@ -26,19 +26,19 @@ PERSONAS = {
         "label": "锐攻",
         "attack": 1.0,
         "defence": 0.6,
-        "brief": "主动挑起战斗，优先做活三、冲四，以局部交换换取主动权",
+        "brief": "主动进攻，优先活三、冲四",
     },
     "balanced": {
         "label": "均衡",
         "attack": 1.0,
         "defence": 0.95,
-        "brief": "攻守等价，先看对手的成五点，再找自己的进攻机会",
+        "brief": "攻守均衡，先看对手成五点",
     },
     "defensive": {
         "label": "稳固",
         "attack": 0.8,
         "defence": 1.3,
-        "brief": "先拆对手的棋形，等对方露出破绽再反击",
+        "brief": "先拆对手棋形，再反击",
     },
 }
 
@@ -132,15 +132,15 @@ def _local_comment(pos: Position, cand: Candidate, color: int) -> str:
     theirs = cand.defence_label
     parts = []
     if mine in ("连五", "活四", "冲四"):
-        parts.append(f"{mine}，直接压制")
+        parts.append(mine)
     elif mine == "活三":
-        parts.append("做活三抢攻")
+        parts.append("做活三")
     elif mine == "眠三":
-        parts.append("做眠三试探")
+        parts.append("做眠三")
     if theirs in ("连五", "活四", "冲四", "活三"):
-        parts.append(f"同时化解对手的{theirs}")
+        parts.append(f"化解对手{theirs}")
     if not parts:
-        return "先占中腹要点，保持棋形展开"
+        return "占中腹"
     return "，".join(parts)
 
 
@@ -185,7 +185,8 @@ def _llm_pick(
 要求：
 1. 先判断对手是否有活三及以上的威胁，有就必须优先处理。
 2. 在有威胁的前提下，再结合你的风格选点。
-3. 只输出 JSON，不要任何额外文字：{{"choice":"A","comment":"20 字以内的中文说明"}}
+3. comment 不超过 12 字，只写棋形或威胁，不写心理活动、比喻或套话。
+4. 只输出 JSON，不要任何额外文字：{{"choice":"A","comment":"形成活三"}}
 """
     try:
         raw = chat(
@@ -238,8 +239,8 @@ def decide(
         # 空盘时「已有棋子周围两格」这个候选集是空的，搜索会直接给天元。
         # 这时候说「无可下的点」是自相矛盾的，换一句和实际动作一致的话。
         if pos.occupied == 0:
-            return Decision(result.move, "opening", "空盘开局，先占天元", [], 0, 0, 0)
-        return Decision(result.move, "fallback", "没有合适的候选点，按搜索首选落子", [], 0, 0, 0)
+            return Decision(result.move, "opening", "占天元", [], 0, 0, 0)
+        return Decision(result.move, "fallback", "按搜索首选落子", [], 0, 0, 0)
 
     engine_move = result.move
     # 让引擎的首选一定出现在候选池里，否则 Agent 可能选不到正解
@@ -329,7 +330,7 @@ def review(moves: list[dict], winner: int | None, difficulty: int) -> str:
 
 {history}
 
-请用 150 字以内复盘这盘棋：开局取向、中盘的转折点、胜负手。用中文，像棋友聊天，不要罗列坐标。"""
+请用 120 字以内复盘：开局取向、转折点、胜负手。用中文陈述事实，不写套话，不罗列坐标。"""
         try:
             return chat(
                 [

@@ -27,7 +27,7 @@ function render() {
   const nameInput = el('input', {
     class: 'input',
     value: '',
-    placeholder: '2–20 位，中英文 / 数字 / 下划线',
+    placeholder: '2–20 位，中英文/数字/下划线',
     autocomplete: 'username',
   })
   const passInput = el('input', {
@@ -51,7 +51,7 @@ function render() {
     const name = nameInput.value.trim()
     const password = passInput.value
     if (mode === 'register' && password !== confirmInput.value) {
-      errorSlot.textContent = '两次输入的密码不一致，请重新输入'
+      errorSlot.textContent = '两次密码不一致'
       errorSlot.hidden = false
       return
     }
@@ -68,14 +68,14 @@ function render() {
       errorSlot.hidden = false
       busy = false
       submitBtn.disabled = false
-      submitBtn.textContent = mode === 'login' ? '进入棋院' : '创建账户'
+      submitBtn.textContent = mode === 'login' ? '登录' : '注册'
     }
   }
 
   const submitBtn = el(
     'button',
     { class: 'btn btn-primary auth-submit', type: 'submit' },
-    mode === 'login' ? '进入棋院' : '创建账户',
+    mode === 'login' ? '登录' : '注册',
   )
 
   const form = el(
@@ -116,12 +116,11 @@ function render() {
         el(
           'p',
           { class: 'auth-switch' },
-          mode === 'login' ? '还没有账户？' : '已经有账户？',
+          mode === 'login' ? '没有账户？' : '已有账户？',
           el('button', { type: 'button', onclick: () => switchMode(mode === 'login' ? 'register' : 'login') },
-            mode === 'login' ? '立即注册' : '返回登录'),
+            mode === 'login' ? '注册' : '登录'),
         ),
       ),
-      el('p', { class: 'auth-tagline' }, '十五路棋盘 · 每一手带解说 · 每一局能复盘'),
     ),
   )
 

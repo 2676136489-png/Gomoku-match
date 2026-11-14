@@ -8,9 +8,9 @@
 const { api, el, $, $$, GomokuBoard, spinner } = window.Gomoku
 
 const FALLBACK_MODES = [
-  { key: 'agent', label: 'AI 对弈', brief: '三档共用一套搜索算法；本档由大模型在候选落点中择一，模型未启用时算法自选。' },
-  { key: 'learn', label: '学习模式', brief: '对手决策与 AI 对弈相同，每手附一条按棋规生成的教练点评；点评不调用模型。' },
-  { key: 'engine', label: '纯引擎', brief: '仅由搜索算法决策，全程不调用模型、无点评；作为对照组。' },
+  { key: 'agent', label: 'AI 对弈', brief: '模型在候选中选择落点' },
+  { key: 'learn', label: '学习模式', brief: '每手附棋形点评' },
+  { key: 'engine', label: '纯引擎', brief: '仅由搜索算法决策' },
 ]
 
 const FALLBACK_RULES = [
@@ -238,7 +238,7 @@ function renderSetup(config) {
     el(
       'div',
       { class: 'setup' },
-      el('header', { class: 'setup-head' }, el('h2', {}, '开始一局')),
+      el('header', { class: 'setup-head' }, el('h2', {}, '对局设置')),
       el(
         'section',
         { class: 'setup-step', dataset: { step: 'opponent' } },
@@ -260,7 +260,7 @@ function renderSetup(config) {
         el('div', { class: 'setup-field', hidden: false },
           el('label', { class: 'toggle' },
             strictToggle,
-            el('span', {}, '禁手判负', el('em', {}, '正式赛制：黑棋落禁手点立即判负；默认拦下并说明原因，棋局继续')),
+            el('span', {}, '禁手判负'),
           ),
         ),
         el('div', { class: 'setup-field' }, el('span', { class: 'setup-label' }, '执子'), colorChips),
@@ -268,19 +268,19 @@ function renderSetup(config) {
       el(
         'details',
         { class: 'setup-more' },
-        el('summary', {}, '高级选项（模型决策、逐步确认）'),
+        el('summary', {}, '高级选项'),
         el(
           'div',
           { class: 'setup-more-body' },
           el('label', { class: `toggle ${llmReady ? '' : 'is-disabled'}` },
             llmToggle,
             el('span', {}, '用模型做决策',
-              el('em', {}, llmReady ? `候选点交给 ${llm.model} 取舍；不勾选则用内置人格权重` : '未配置模型，使用内置策略人格')),
+              el('em', {}, llmReady ? `候选点由 ${llm.model} 选择` : '模型未配置')),
           ),
           el('label', { class: 'toggle' },
             stepToggle,
             el('span', {}, '逐步确认',
-              el('em', {}, 'Agent 计算完成后暂停，点「确认」再落子，便于逐步看懂它为什么这么走')),
+              el('em', {}, '每手确认后落子')),
           ),
         ),
       ),
@@ -315,9 +315,9 @@ const VERDICT = {
 
 const KIND_LABEL = {
   shape: '棋形',
-  defence: '兼顾防守',
+  defence: '防守',
   miss: '漏着',
-  save: '救急',
+  save: '防守',
   winrate: '胜率',
   alternative: '备选',
 }
@@ -325,7 +325,7 @@ const KIND_LABEL = {
 const GRADE_LABEL = { win: '胜势', good: '好手', warn: '漏防', neutral: '布局' }
 const SHAPES = ['活二', '眠三', '活三', '冲四', '活四', '连五']
 const CONFIDENCE_LABEL = { certain: '确定', high: '高', medium: '中', low: '低' }
-const SOURCE_LABEL = { tactical: '战术判定', model: '标定模型' }
+const SOURCE_LABEL = { tactical: '战术', model: '模型' }
 
 class GameView {
   constructor(main, gameId, refreshUser) {
@@ -477,9 +477,9 @@ class GameView {
     if (g.status === 'finished') {
       if (!g.winner) return { tone: 'idle', text: '和棋' }
       if (g.winner === g.human_color) return { tone: 'win', text: '你赢了' }
-      return { tone: 'lose', text: g.ban_loss ? '禁手判负' : 'Agent 获胜' }
+      return { tone: 'lose', text: g.ban_loss ? '禁手判负' : 'AI 获胜' }
     }
-    if (this.busy) return { tone: 'thinking', text: 'Agent 思考中' }
+    if (this.busy) return { tone: 'thinking', text: 'AI 思考中' }
     if (g.pending) return { tone: 'wait', text: '等待确认落子' }
     return this.humanTurn ? { tone: 'live', text: '轮到你落子' } : { tone: 'wait', text: '等待对手落子' }
   }
@@ -540,12 +540,12 @@ class GameView {
       focus: this.focus,
     })
 
-    this.captionMain.textContent = g.status === 'finished' ? '对局结束' : g.pending ? '已计算完成，等待确认' : '点击交叉点落子'
+    this.captionMain.textContent = g.status === 'finished' ? '对局结束' : g.pending ? '等待确认' : '点击落子'
     this.captionSide.innerHTML = ''
     if (g.status === 'finished' && g.result_reason) {
       this.captionSide.append(el('span', { class: `result-note ${g.ban_loss ? 'is-ban' : ''}` }, g.result_reason))
     } else if (this.hintPoint) {
-      this.captionSide.append(el('span', { class: 'hint-note' }, `建议 ${this.hintPoint.x},${this.hintPoint.y}`))
+      this.captionSide.append(el('span', { class: 'hint-note' }, `推荐 ${this.hintPoint.x},${this.hintPoint.y}`))
     }
 
     this.btnPredict.textContent = this.predictOn ? '收起落点预测' : '落点预测'
@@ -559,7 +559,7 @@ class GameView {
       this.legendPredict.innerHTML = ''
       this.legendPredict.append(
         document.createTextNode(
-          (this.insight.prediction.side === g.human_color ? '你的可能落点：' : '对手可能落点：'),
+          (this.insight.prediction.side === g.human_color ? '你的候选点：' : '对手候选点：'),
         ),
         ...predictTop.map((p) =>
           el('b', { title: p.why }, `${p.x},${p.y}`, el('i', {}, String(Math.round(p.share * 100)))),
@@ -572,7 +572,7 @@ class GameView {
     if (!this.legendHeat.hidden) {
       this.legendHeat.innerHTML = ''
       this.legendHeat.append(
-        document.createTextNode('网络最看好的五个点：'),
+        document.createTextNode('网络前五点：'),
         ...heatTop.map((p) => el('b', {}, `${p.x},${p.y}`, el('i', {}, String(Math.round(p.score * 100))))),
       )
     }
@@ -609,7 +609,7 @@ class GameView {
 
   buildCoach() {
     const panel = el('section', { class: 'panel coach' },
-      el('div', { class: 'panel-head' }, el('h2', {}, '教练'), el('span', { class: 'panel-note' }, '基于可验证的棋形事实判断')))
+      el('div', { class: 'panel-head' }, el('h2', {}, '教练')))
 
     if (this.coach) {
       const c = this.coach
@@ -628,7 +628,7 @@ class GameView {
         ),
       )
     } else {
-      panel.append(el('p', { class: 'empty-note' }, '落子后显示点评。'))
+      panel.append(el('p', { class: 'empty-note' }, '暂无点评'))
     }
 
     if (this.tactics) {
@@ -649,7 +649,7 @@ class GameView {
 
     if (this.agent && this.agent.comment) {
       panel.append(
-        el('div', { class: 'coach-agent' }, el('span', { class: 'coach-label' }, 'Agent 的说明'), el('p', {}, this.agent.comment)),
+        el('div', { class: 'coach-agent' }, el('span', { class: 'coach-label' }, 'AI 说明'), el('p', {}, this.agent.comment)),
       )
     }
     return panel
@@ -662,8 +662,8 @@ class GameView {
       return el(
         'section',
         { class: 'panel panel-explain is-empty' },
-        el('div', { class: 'panel-head' }, el('h2', {}, '本手解说'), el('span', { class: 'panel-note' }, '点击棋谱中任意一手')),
-        el('p', { class: 'empty-note' }, '每落一手都会自动解说。棋谱里点某一手，也能看那一手当时为什么那么走。'),
+        el('div', { class: 'panel-head' }, el('h2', {}, '本手解说')),
+        el('p', { class: 'empty-note' }, '暂无解说'),
       )
     }
 
@@ -682,7 +682,6 @@ class GameView {
         el('span', { class: `ex-verdict tone-${v.tone}` }, v.label),
         el('b', {}, data.headline),
         !g.pending ? el('button', { class: 'ex-close', type: 'button', 'aria-label': '收起解说', onclick: () => { this.explain = null; this.renderNote() } }, '×') : null),
-      el('p', { class: 'ex-narrative' }, data.narrative),
       el('ul', { class: 'ex-facts' },
         (data.facts || []).map((f) =>
           el('li', { className: `kind-${f.kind}` }, el('span', { class: 'ex-kind' }, KIND_LABEL[f.kind] || f.kind), el('span', {}, f.text)))),
@@ -703,7 +702,7 @@ class GameView {
         el(
           'div',
           { class: 'ex-alts' },
-          el('div', { class: 'ex-alts-head' }, '当时的其他候选'),
+          el('div', { class: 'ex-alts-head' }, '其他候选'),
           el('ul', {},
             data.alternatives.map((a) => el('li', {}, el('span', { class: 'coord' }, `${a.x},${a.y}`), el('span', {}, a.why)))),
         ),
@@ -736,7 +735,7 @@ class GameView {
     holder.innerHTML = ''
     if (!series.length) {
       holder.append(
-        el('div', { class: 'chart-empty' }, el('span', {}, '胜率曲线'), el('p', {}, '落子后显示逐手胜率')),
+        el('div', { class: 'chart-empty' }, el('span', {}, '胜率曲线'), el('p', {}, '暂无数据')),
       )
       return
     }
@@ -804,7 +803,7 @@ class GameView {
           swing > 0 ? el('span', { class: 'wr-swing-note' }, `转折 第 ${pts[swing].row.ply} 手 ${(swingDelta * 100).toFixed(0)} 点`) : null,
           el('span', {}, `第 ${series.length} 手`)),
         swing > 0
-          ? el('button', { class: 'wr-jump', type: 'button', onclick: () => this.explainPly(swing) }, `看第 ${pts[swing].row.ply} 手怎么走的`)
+          ? el('button', { class: 'wr-jump', type: 'button', onclick: () => this.explainPly(swing) }, `查看第 ${pts[swing].row.ply} 手`)
           : null,
       ),
     )
@@ -833,7 +832,7 @@ class GameView {
       $$('.an-tab', tabs).forEach((b) => b.classList.toggle('is-active', b.dataset.an === this.anTab))
       body.innerHTML = ''
       if (!insight) {
-        body.append(el('p', { class: 'empty-note' }, '等待局面数据…'))
+        body.append(el('p', { class: 'empty-note' }, '暂无数据'))
         return
       }
       if (this.anTab === 'rate') this.buildRateTab(insight, body)
@@ -851,7 +850,7 @@ class GameView {
   buildRateTab(insight, body) {
     const win = insight.winrate
     if (!win) {
-      body.append(el('p', { class: 'empty-note' }, '胜率数据还没有就绪。'))
+      body.append(el('p', { class: 'empty-note' }, '暂无数据'))
       return
     }
     const p = win.human ?? 0.5
@@ -875,10 +874,8 @@ class GameView {
             el('div', { class: 'fact-head' }, el('b', {}, (f.mine || 0).toLocaleString()), el('span', {}, f.label), el('b', {}, (f.theirs || 0).toLocaleString())),
             el('div', { class: 'fact-track' }, el('span', { class: 'fact-mine', style: `width:${left.toFixed(1)}%` })))
         })),
-      el('p', { class: 'an-foot' },
-        '左右两侧是黑棋和白棋的量，中间那条线是两者相等的位置。',
-        win.confidence_note ? ` ${win.confidence_note}。` : ''),
     )
+    if (win.confidence_note) body.append(el('p', { class: 'an-foot' }, win.confidence_note))
   }
 
   buildPredictTab(insight, body) {
@@ -886,8 +883,8 @@ class GameView {
     body.append(
       el('p', { class: 'pred-head' },
         insight.status === 'playing'
-          ? `${pred && pred.side === 1 ? '黑棋' : '白棋'}下一步最可能落在这几个点。份额表示候选池内的相对倾向，不是统计概率，准确度见下方命中率。`
-          : '对局已结束，没有待预测的一手。'),
+          ? `${pred && pred.side === 1 ? '黑棋' : '白棋'}下一手候选点`
+          : '对局已结束'),
     )
 
     const points = (pred && pred.points) || []
@@ -911,17 +908,14 @@ class GameView {
       })
       body.append(list)
     } else {
-      body.append(el('p', { class: 'empty-note' }, '无可落子点。'))
+      body.append(el('p', { class: 'empty-note' }, '暂无候选点'))
     }
 
     const model = insight.model
     if (model && model.predict && model.predict.top3 != null) {
       body.append(
         el('p', { class: 'an-foot' },
-          `在 ${model.predict.eval_positions ?? 40} 个中盘局面上，以搜索实际选点为标准：首选命中 ${(model.predict.top1 * 100).toFixed(0)}%，前三命中 ${(model.predict.top3 * 100).toFixed(0)}%。`,
-          model.predict.prior_weight > 0
-            ? ` 叠加网络先验（权重 ${model.predict.prior_weight}）之后取表现最好的那一组参数。`
-            : ' 叠加网络先验未在该指标上产生差异，权重取 0：排序仅使用棋形分，网络自身的判断在「网络视角」中单独查看。'),
+          `命中率 首选 ${(model.predict.top1 * 100).toFixed(0)}% · 前三 ${(model.predict.top3 * 100).toFixed(0)}%`),
       )
     }
   }
@@ -930,13 +924,13 @@ class GameView {
     const census = insight.census
     const model = insight.model
     if (!census) {
-      body.append(el('p', { class: 'empty-note' }, '盘面数据还没有就绪。'))
+      body.append(el('p', { class: 'empty-note' }, '暂无数据'))
       return
     }
 
     body.append(
       el('div', { class: 'data-block' },
-        el('div', { class: 'data-title' }, el('span', {}, '棋形分布'), el('em', {}, '每个空点若被该色占据，能形成的最强棋形')),
+        el('div', { class: 'data-title' }, el('span', {}, '棋形分布')),
         el('div', { class: 'shape-rows' },
           SHAPES.map((name) => {
             const b = (census.shapes.black[name] ?? 0)
@@ -952,7 +946,7 @@ class GameView {
           el('span', {}, el('i', { class: 'lg ln-black' }), '黑'),
           el('span', {}, el('i', { class: 'lg ln-white' }), '白'))),
       el('div', { class: 'data-block' },
-        el('div', { class: 'data-title' }, el('span', {}, '可数项'), el('em', {}, '都能在棋盘上数出来')),
+        el('div', { class: 'data-title' }, el('span', {}, '可数项')),
         el('dl', { class: 'data-grid' },
           el('div', {}, el('dt', {}, '棋子'), el('dd', {}, `${census.stones.black} / ${census.stones.white}`)),
           el('div', {}, el('dt', {}, '棋形总量'), el('dd', {}, `${census.material.black.toLocaleString()} / ${census.material.white.toLocaleString()}`)),
@@ -964,19 +958,30 @@ class GameView {
 
     if (model && model.buckets && model.buckets.length) {
       body.append(
-        el('div', { class: 'data-block' },
-          el('div', { class: 'data-title' }, el('span', {}, '模型可靠性'),
-            el('em', {}, `${model.games ? `${model.games} 局自对弈标定` : '手写兜底权重'} · AUC ${model.auc ?? '—'}`)),
-          el('div', { class: 'rel-table' },
+        el(
+          'div',
+          { class: 'data-block' },
+          el(
+            'div',
+            { class: 'data-title' },
+            el('span', {}, '模型可靠性'),
+            el('em', {}, `${model.games ? `${model.games} 局标定` : '默认权重'} · AUC ${model.auc ?? '—'}`),
+          ),
+          el(
+            'div',
+            { class: 'rel-table' },
             el('div', { class: 'rel-head' }, el('span', {}, '预测区间'), el('span', {}, '样本'), el('span', {}, '实际')),
             model.buckets.map((b) =>
-              el('div', { class: 'rel-row' },
+              el(
+                'div',
+                { class: 'rel-row' },
                 el('span', {}, b.range),
                 el('span', {}, String(b.n)),
-                el('span', {}, el('i', { style: `width:${Math.min(100, b.actual * 100)}%` }), `${(b.actual * 100).toFixed(1)}%`)))),
-          el('p', { class: 'an-foot' },
-            '每档的实际胜率贴着预测走，才说明这个数字可信。偏差最大的一档相差',
-            `${Math.max(...model.buckets.map((b) => Math.abs(b.actual - b.predicted) * 100)).toFixed(1)} 个百分点。`)),
+                el('span', {}, el('i', { style: `width:${Math.min(100, b.actual * 100)}%` }), `${(b.actual * 100).toFixed(1)}%`),
+              ),
+            ),
+          ),
+        ),
       )
     }
   }
@@ -988,7 +993,7 @@ class GameView {
     const holder = this.feedSlot
     holder.innerHTML = ''
     const panel = el('section', { class: 'panel' },
-      el('div', { class: 'panel-head' }, el('h2', {}, '全部落子'), el('span', { class: 'panel-note' }, '点击任意一手看当时怎么想的')))
+      el('div', { class: 'panel-head' }, el('h2', {}, '全部落子')))
     const feed = el('div', { class: 'game-feed' })
     const moves = g.moves || []
     moves.forEach((move, i) => {
@@ -1004,7 +1009,7 @@ class GameView {
           el('span', { class: 'feed-ms' }, move.comment || '')),
       )
     })
-    if (!moves.length) feed.append(el('p', { class: 'empty-note' }, '本局还没有落子。'))
+    if (!moves.length) feed.append(el('p', { class: 'empty-note' }, '暂无落子'))
     panel.append(feed)
     holder.append(panel)
   }
@@ -1013,7 +1018,7 @@ class GameView {
 
   async load() {
     this.main.innerHTML = ''
-    this.main.append(spinner('正在读取对局…'))
+    this.main.append(spinner('加载中…'))
     try {
       const res = await api.replay(this.gameId)
       this.main.innerHTML = ''
@@ -1032,7 +1037,7 @@ class GameView {
       this.main.append(
         el('div', { class: 'notfound' },
           el('h2', { style: 'font-size:18px;margin-bottom:8px' }, '对局不存在'),
-          el('p', { class: 'dim', style: 'margin-bottom:14px' }, e.message || '这个对局 id 没有对应的记录，可能已经被清理。'),
+          el('p', { class: 'dim', style: 'margin-bottom:14px' }, e.message || '对局不存在或已清理'),
           el('button', { class: 'btn btn-primary', type: 'button', onclick: () => (window.location.href = 'play.html') }, '回到开局准备')),
       )
     }
@@ -1231,7 +1236,7 @@ class GameView {
         rule: this.game.rule,
       })
       this.heat = res.ready ? res.points : []
-      if (!res.ready) this.showError('网络权重未加载，请稍后重试')
+      if (!res.ready) this.showError('网络权重未加载')
       this.predictOn = false
     } catch (e) {
       this.showError(e.message)

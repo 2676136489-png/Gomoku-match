@@ -224,8 +224,8 @@ def main() -> int:
     resume = p.eval("(() => { const b = document.querySelector('.ex-resume'); return b ? b.textContent : ''; })()")
     check("有确认落子的按钮", "确认" in resume, resume)
 
-    narrative = p.eval("(() => { const el = document.querySelector('.ex-narrative'); return el ? el.textContent : ''; })()")
-    check("待确认的一手有解说文字", len(narrative) > 20, narrative[:60])
+    facts = p.eval("document.querySelectorAll('.panel-explain .ex-facts li').length")
+    check("待确认的一手有解说文字", facts >= 1, str(facts))
 
     status = p.eval("(() => { const el = document.querySelector('.play-meta .pill'); return el ? el.textContent : ''; })()")
     check("状态栏提示等待确认", "等待确认" in status, status)

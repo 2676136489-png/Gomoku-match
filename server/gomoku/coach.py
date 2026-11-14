@@ -37,16 +37,16 @@ def analyze(pos: Position, idx: int, color: int) -> dict:
         return {
             "grade": "win",
             "title": f"这一手是{attack_label}",
-            "detail": "对手无法同时防守。活四有两个成五点，连五则直接获胜。",
+            "detail": "对手无法同时防守。",
             "facts": {"attack": attack_label, "defence": defence_label, "threats": len(threats)},
         }
 
     if threat_here:
-        extra = "" if not threats or len(threats) == 1 else f"（对手当时有 {len(threats)} 个威胁点，本次仅处理其中一个）"
+        extra = "" if not threats or len(threats) == 1 else f"另有 {len(threats) - 1} 个威胁点。"
         return {
             "grade": "good",
             "title": f"挡住了对手的{defence_label}",
-            "detail": f"该点若被对手占据会形成{defence_label}，本手占位后威胁解除。{extra}",
+            "detail": f"占{defence_label}，威胁解除。{extra}",
             "facts": {"attack": attack_label, "defence": defence_label, "threats": len(threats)},
         }
 
@@ -55,8 +55,7 @@ def analyze(pos: Position, idx: int, color: int) -> dict:
         return {
             "grade": "warn",
             "title": "对手活三未处理",
-            "detail": f"对手在 {points} 落子会形成活三以上，本手未在该区域落子。"
-            f"除非下一手能形成四或五，否则将陷入被动。",
+            "detail": f"对手在 {points} 可成活三以上。",
             "facts": {"attack": attack_label, "defence": defence_label, "threats": len(threats)},
         }
 
@@ -64,7 +63,7 @@ def analyze(pos: Position, idx: int, color: int) -> dict:
         return {
             "grade": "good",
             "title": f"主动做{attack_label}",
-            "detail": f"对手无立即的活三威胁，本手抢先形成{attack_label}，转入主动。",
+            "detail": f"对手无活三威胁，抢先形成{attack_label}。",
             "facts": {"attack": attack_label, "defence": defence_label, "threats": 0},
         }
 
@@ -72,7 +71,7 @@ def analyze(pos: Position, idx: int, color: int) -> dict:
         return {
             "grade": "good",
             "title": "形成强威胁",
-            "detail": f"落子后是{attack_label}，对手必须应。",
+            "detail": f"形成{attack_label}，对手必须应。",
             "facts": {"attack": attack_label, "defence": defence_label, "threats": len(threats)},
         }
 
@@ -80,15 +79,14 @@ def analyze(pos: Position, idx: int, color: int) -> dict:
         return {
             "grade": "neutral",
             "title": "布局手",
-            "detail": "本手未直接形成棋形，双方也均无活三以上威胁。"
-            "布局阶段关注方向与连接，避免棋子分散。",
+            "detail": "双方均无活三以上威胁。",
             "facts": {"attack": attack_label, "defence": defence_label, "threats": len(threats)},
         }
 
     return {
         "grade": "neutral",
         "title": f"这一手形成{attack_label}",
-        "detail": "双方均无活三以上威胁，属布局阶段。布局关注发展方向，避免棋子分散。",
+        "detail": "双方均无活三以上威胁。",
         "facts": {"attack": attack_label, "defence": defence_label, "threats": 0},
     }
 

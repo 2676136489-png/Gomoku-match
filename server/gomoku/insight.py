@@ -230,12 +230,12 @@ def _tactical(info: dict[int, dict[str, int]], turn: int) -> tuple[float, str] |
     them = info[OPPONENT[turn]]
 
     if me["fives"]:
-        return 1.0, "有直接成五的点，这一手就结束"
+        return 1.0, "可直接连五"
     if them["fives"] >= 2:
         # 对手有两个成五点，堵掉一个还剩一个
-        return 0.0, "对手有两个成五点，堵不过来"
+        return 0.0, "对手双成五点"
     if me["open_fours"] and not them["fives"]:
-        return 0.995, "落下成活四，两个成五点对手只能堵一个"
+        return 0.995, "成活四，对手无法全堵"
     return None
 
 
@@ -290,7 +290,7 @@ def winrate(pos: Position, side: int, turn: int, *, info: dict | None = None) ->
     values = _features(pos, turn)
     z, _ = get_model().logit([values[k] for k in FEATURES])
     p_stm = _sigmoid(z)
-    source, reason = "model", "标定模型按棋形总量和盘面阶段给出"
+    source, reason = "model", "标定模型"
 
     tactical = _tactical(info, turn)
     if tactical is not None:
@@ -305,13 +305,13 @@ def winrate(pos: Position, side: int, turn: int, *, info: dict | None = None) ->
     if source == "tactical":
         confidence, note = "certain", reason
     elif their_fours:
-        confidence, note = "high", "对手有冲四级别的杀招，局面接近定局"
+        confidence, note = "high", "对手有冲四"
     elif my_fours:
-        confidence, note = "high", "己方有冲四级别的杀招，局面接近定局"
+        confidence, note = "high", "己方有冲四"
     elif abs(p - 0.5) > 0.2:
-        confidence, note = "medium", "棋形差距明显，但还没到定局"
+        confidence, note = "medium", "棋形差距明显"
     else:
-        confidence, note = "low", "双方棋形接近，任何一手都可能翻盘"
+        confidence, note = "low", "双方棋形接近"
 
     return {
         "p": round(p, 4),
@@ -337,24 +337,24 @@ def _why(pos: Position, idx: int, side: int) -> str:
     theirs = shapes.SHAPE_NAMES[opp_rank]
 
     if my_rank >= shapes.FIVE:
-        return "落下即连五"
+        return "连五"
     if opp_rank >= shapes.FIVE:
-        return "不堵这里对手就连五"
+        return "挡连五"
     if my_rank >= shapes.OPEN_FOUR:
-        return f"形成{mine}，两头都堵不住"
+        return mine
     if opp_rank >= shapes.OPEN_FOUR:
-        return f"挡住对手的{theirs}"
+        return f"挡{theirs}"
     if my_rank >= shapes.FOUR:
-        return "冲四，逼对手应一手"
+        return "冲四"
     if opp_rank >= shapes.FOUR:
-        return f"拆掉对手的{theirs}"
+        return f"拆{theirs}"
     if my_rank >= shapes.OPEN_THREE:
-        return f"做{mine}抢攻"
+        return mine
     if opp_rank >= shapes.OPEN_THREE:
-        return f"压住对手的{theirs}"
+        return f"压{theirs}"
     if my_rank >= shapes.THREE:
-        return f"做{mine}试探"
-    return "贴近已有棋形，往中腹展开"
+        return mine
+    return "中腹展开"
 
 
 def predict(pos: Position, side: int, limit: int = 6) -> dict:
@@ -513,30 +513,27 @@ def analyze(pos: Position, idx: int, color: int, meta: dict | None = None) -> di
 
     dirs = [f"{n}{shapes.SHAPE_NAMES[r]}" for n, r in zip(DIR_NAMES, ranks) if r >= shapes.OPEN_THREE]
     if dirs:
-        facts.append({"kind": "shape", "text": f"四个方向里 {'、'.join(dirs)}"})
+        facts.append({"kind": "shape", "text": "、".join(dirs)})
     elif my_rank > shapes.NONE:
-        facts.append({"kind": "shape", "text": f"最强的一条线只有{my_label}，还构不成威胁"})
+        facts.append({"kind": "shape", "text": my_label})
     else:
-        facts.append({"kind": "shape", "text": "四个方向都没有形成棋形"})
+        facts.append({"kind": "shape", "text": "无棋形"})
 
     if opp_rank >= shapes.OPEN_THREE:
-        facts.append(
-            {"kind": "defence", "text": f"该点若被对手占据会形成{opp_label}，占位后威胁解除"}
-        )
+        facts.append({"kind": "defence", "text": f"占对手{opp_label}"})
 
     unaddressed = [i for i in lethal if i != idx]
     if lethal and not blocked_here:
         points = "、".join(f"({i % SIZE},{i // SIZE})" for i in unaddressed[:3])
-        facts.append({"kind": "miss", "text": f"对手在 {points} 有冲四级别的杀招，这一手没处理"})
+        facts.append({"kind": "miss", "text": f"对手在 {points} 有冲四"})
     elif lethal and blocked_here:
-        facts.append({"kind": "save", "text": "挡住了对手的冲四，否则下一手就结束了"})
+        facts.append({"kind": "save", "text": "挡对手冲四"})
 
     if abs(delta) >= 0.005:
-        arrow = "抬高" if delta > 0 else "压低"
         facts.append(
             {
                 "kind": "winrate",
-                "text": f"胜率从 {p_before * 100:.1f}% 到 {p_after * 100:.1f}%，{arrow} {abs(delta) * 100:.1f} 个点",
+                "text": f"胜率 {p_before * 100:.1f}% → {p_after * 100:.1f}%",
             }
         )
 
@@ -550,7 +547,7 @@ def analyze(pos: Position, idx: int, color: int, meta: dict | None = None) -> di
     if beating:
         b = beating[0]
         facts.append(
-            {"kind": "alternative", "text": f"备选 ({b['x']},{b['y']}) 能形成{b['attack']}，比这一手强"}
+            {"kind": "alternative", "text": f"备选 ({b['x']},{b['y']}) 形成{b['attack']}"}
         )
 
     if ban:
@@ -590,20 +587,20 @@ def analyze(pos: Position, idx: int, color: int, meta: dict | None = None) -> di
 
 def _headline(verdict: str, mine: str, theirs: str, delta: float) -> str:
     if verdict == "ban":
-        return "这一手是禁手，直接判负"
+        return "禁手"
     if verdict == "win":
-        return "连五，这一手结束对局"
+        return "连五"
     if verdict == "bad":
         if theirs == "无":
-            return "这一手让出了主动"
-        return f"没处理对手的{theirs}"
+            return "未取得主动"
+        return f"未处理对手{theirs}"
     if verdict == "good":
         if theirs in ("冲四", "活四", "连五"):
-            return f"挡住了对手的{theirs}"
+            return f"挡{theirs}"
         if mine in ("活三", "冲四", "活四", "连五"):
-            return f"做{mine}抢攻"
-        return "局面因此改善"
-    return "过渡手，没有立刻改变局势"
+            return f"做{mine}"
+        return "局面改善"
+    return "过渡手"
 
 
 def _narrative(headline: str, facts: list[dict], color: int, meta: dict) -> str:

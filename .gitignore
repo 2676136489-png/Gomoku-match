@@ -28,3 +28,6 @@ docs/interview/
 
 # 云平台发布的应用标记
 *.genie
+
+# 编辑器生成的 HTML 分享包
+.trae-html-share-packages/

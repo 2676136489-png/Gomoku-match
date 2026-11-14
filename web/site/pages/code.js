@@ -335,14 +335,14 @@ function render() {
       el('label', { class: 'field' }, el('span', {}, '规则'), ruleChips),
       el('label', { class: 'field' }, timeoutLabel, timeoutRange),
       el('label', { class: 'toggle' }, avoidToggle,
-        el('span', {}, '自动避开禁手', el('em', {}, '返回禁手点时改为贪心推荐的合法点，并在过程中标注')))))
+        el('span', {}, '自动避开禁手', el('em', {}, '禁手点自动替换')))))
 
   // 对局区
   node.boardHolder = el('div')
   board = new GomokuBoard(node.boardHolder, {})
   board.update({ board: state.board, interactive: false, humanColor: state.codeColor })
   node.boardOverlay = el('div', { class: 'board-overlay', hidden: !state.running },
-    el('span', { class: 'spinner' }), el('p', {}, state.running ? (state.moves.length ? `对弈中 · ${state.moves.length} 手` : '对弈中…') : '准备对弈…'))
+    el('span', { class: 'spinner' }), el('p', {}, state.running ? (state.moves.length ? `对弈中 · ${state.moves.length} 手` : '对弈中…') : '准备中'))
   node.statusSlot = el('div', { class: 'lab-status' })
   node.resultSlot = el('div', {})
   node.feedSlot = el('div', {})
@@ -427,7 +427,7 @@ function renderVerify() {
   if (v.ok) {
     slot.append(el('div', { class: 'lab-verify is-ok' },
       el('b', {}, '校验通过'),
-      el('span', {}, `空盘试走一手 → (${v.move.x},${v.move.y})，耗时 ${v.elapsed_ms} ms`)))
+      el('span', {}, `试走 (${v.move.x},${v.move.y}) · ${v.elapsed_ms}ms`)))
   } else {
     slot.append(el('div', { class: 'lab-verify is-bad' },
       el('b', {}, '校验失败'),
@@ -473,7 +473,7 @@ function renderFeed() {
   if (!slot) return
   slot.innerHTML = ''
   if (!state.moves.length) {
-    slot.append(el('p', { class: 'empty-note' }, '开始对弈后，这里会逐手冒出来。'))
+    slot.append(el('p', { class: 'empty-note' }, '暂无记录'))
     return
   }
   slot.append(
@@ -497,7 +497,7 @@ function switchLang(next) {
   const caps = (config && config.capabilities) || {}
   const cppReady = (caps.cpp && caps.cpp.available) || false
   if (next === 'cpp' && !cppReady) {
-    state.error = (caps.cpp && caps.cpp.detail) || 'C++ 通道不可用，请检查编译器配置'
+    state.error = (caps.cpp && caps.cpp.detail) || 'C++ 编译器不可用'
     render()
     return
   }
@@ -532,7 +532,7 @@ async function importFile(file) {
   const ext = (file.name.split('.').pop() || '').toLowerCase()
   const guess = EXT_LANG[ext]
   if (!guess) {
-    state.error = `认不出 .${ext} 是什么语言，只接 .py 和 .cpp（含 .cc/.cxx/.hpp）`
+    state.error = '仅支持 .py / .cpp'
     render()
     return
   }
@@ -540,7 +540,7 @@ async function importFile(file) {
   try {
     text = await file.text()
   } catch {
-    state.error = `读不了 ${file.name}，可能没有读取权限`
+    state.error = `无法读取 ${file.name}`
     render()
     return
   }
@@ -556,7 +556,7 @@ async function importFile(file) {
   state.fileName = file.name
   state.fileSize = file.size
   if (guess === 'cpp' && !cppReady) {
-    state.error = `已导入 ${file.name}，但这台机器没有可用的 C++ 编译器，暂时跑不了`
+    state.error = `已导入 ${file.name}，C++ 编译器不可用`
   }
   render()
 }
@@ -589,7 +589,7 @@ async function run() {
   const caps = (config && config.capabilities) || {}
   const cppReady = (caps.cpp && caps.cpp.available) || false
   if (state.lang === 'cpp' && !cppReady) {
-    state.error = '未检测到可用的 C++ 编译器，请切换为 Python'
+    state.error = 'C++ 编译器不可用，请切换为 Python'
     render()
     return
   }
