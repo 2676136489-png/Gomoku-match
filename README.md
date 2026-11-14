@@ -1,9 +1,9 @@
 # Gomoku Match
 
-[![在线演示](https://img.shields.io/badge/在线演示-直接体验-a63628?style=flat-square)](https://gomoku-match.app.workbuddy.host/?sharecode=MJAKMJUVAA)
-[![后端测试](https://img.shields.io/badge/后端测试-459%20项通过-2f6f4e?style=flat-square)](#测试)
-[![浏览器走查](https://img.shields.io/badge/浏览器走查-189%20项通过-2f6f4e?style=flat-square)](#测试)
-[![许可](https://img.shields.io/badge/许可-MIT-8a8f86?style=flat-square)](LICENSE)
+[![在线演示](docs/badges/demo.svg)](https://gomoku-match.app.workbuddy.host/?sharecode=MJAKMJUVAA)
+[![后端测试](docs/badges/tests.svg)](#测试)
+[![浏览器走查](docs/badges/walk.svg)](#测试)
+[![许可](docs/badges/license.svg)](LICENSE)
 
 面向 15×15 国际连珠（Renju）规则的对弈与算法实验平台，提供人机对弈、算法竞技场、自定义策略三类对局方式，以及基于棋谱训练贪心权重的实验页面。
 
@@ -89,7 +89,7 @@
 
 ## 界面体系
 
-界面没有引入 UI 框架，全部为手写 CSS 与原生 JS，视觉围绕深色视频背景与玻璃面板展开。`web/site` 是线上静态站的源码，不是构建产物；页面直接引用 `app.css`、`styles.css` 和 `pages/*.js`，没有打包步骤。Inter、Geist Pixel、Bubbledot 与页头图标都走本地文件，不依赖 Google Fonts、OnlineWebFonts 或 Font Awesome CDN。
+界面没有引入 UI 框架，全部为手写 CSS 与原生 JS，视觉围绕深色视频背景与玻璃面板展开。`web/site` 是线上静态站的源码，不是构建产物；页面直接引用 `app.css`、`styles.css` 和 `pages/*.js`，没有打包步骤。Inter、Geist Pixel、Bubbledot、页头图标、背景视频与 README 徽章都走本地文件，不依赖任何外部 CDN。
 
 **令牌集中在 `app.css` 的 `:root`。** 底色 `--bg #050507`；正文 `--muted #a3a3a3`、`--dim #828282`；玻璃面板 `--panel rgba(9,10,14,.54)` 与 `--panel-2 rgba(26,27,33,.6)`，统一 `blur(28px) saturate(1.4)`；强调色只有两支：朱砂 `--seal #cf4529`（热、学到、上调、正在发生）与石青 `--jade #4e9a8f`（冷、基线、下调、对照）；棋盘专用木色 `--wood #dcac5f`。
 
@@ -340,6 +340,12 @@ make docker-run        # docker compose up -d，数据挂载在 gomoku-data 卷
 单进程是有意的设计：对局状态保存在内存中，多 worker 会导致各进程持有部分棋局。横向扩展需先将热态迁移至共享存储，属于独立的改造范围。
 
 CI 矩阵：Python 3.11 与 3.13，执行 `compileall`、静态站点存在性检查、全部测试、`docker build`（不推送）。前端没有构建步骤，不需要 Node。
+
+### 本地资源
+
+前端不请求外部 CDN：字体、图标、背景视频与 README 徽章都在仓库内（`web/site/fonts/`、`web/site/assets/`、`docs/badges/`）。`bg.mp4` 为本地文件，页面不再引用远端视频地址。
+
+后端唯一可选的外部服务是大模型接口（`GOMOKU_LLM_*`）；未配置密钥时 `LLMConfig().enabled` 为 false，Agent 使用内置策略，不发起外部请求。
 
 ### 托管在 WorkBuddy 云平台
 

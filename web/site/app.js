@@ -862,16 +862,12 @@ function landscapeHint() {
 // 内页沿用首页那段极光视频。标记里不写死：八个页面各抄一遍 <video> 只会
 // 越抄越走样，这里统一注入，样式全在 app.css 的 .bg 一节。
 // login.html 自己写了一份（它比内页更亮，见 login.css），先查重再插。
+// 视频只读项目内的 assets/bg.mp4，不请求任何外部地址。
 function mountBackdrop() {
   if (document.querySelector('.bg')) return
   const video = el(
     'video',
     { class: 'bg-video', autoplay: true, loop: true, playsinline: true, 'aria-hidden': 'true' },
-    el('source', {
-      src: 'https://motionsites.org/assets/prompt-media/f1862a9c64d125907d30.mp4',
-      type: 'video/mp4',
-    }),
-    // 远端拉不到（境内网络抖动）时退到本地副本，页面不至于黑成纯色
     el('source', { src: 'assets/bg.mp4', type: 'video/mp4' }),
   )
   // muted 必须在插入文档前设成属性，否则自动播放会被拦
